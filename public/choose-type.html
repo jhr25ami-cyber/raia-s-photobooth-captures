@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Pilih Jenis Frame ✿ Raia Photobooth</title>
+<link rel="stylesheet" href="/style.css"/>
+</head>
+<body>
+<div class="app page-fade">
+  <nav class="nav">
+    <a class="brand" href="/welcome.html">
+      <div class="brand-logo">📷</div>
+      <div class="brand-name"><span>R</span><span>A</span><span>I</span><span>A</span><small>PHOTOBOOTH</small></div>
+    </a>
+    <button class="btn btn-ghost" onclick="RAIA.go('welcome.html')">← Kembali</button>
+  </nav>
+  <main class="container" style="padding-bottom:60px">
+    <h2 class="page-title">Pilih Jenis Frame</h2>
+    <p class="page-sub">Mau cetak strip ala photobooth Korea atau standard 4R yang elegan?</p>
+    <div class="type-grid">
+      <div class="type-card" data-type="strip">
+        <div class="preview"><div class="mock-strip"><div></div><div></div><div></div><div></div></div></div>
+        <h3>Frame Strip 📸</h3>
+        <p>4 foto vertikal — classic Korean photobooth</p>
+      </div>
+      <div class="type-card" data-type="r4">
+        <div class="preview"><div class="mock-4r"><div></div></div></div>
+        <h3>Frame Standard 4R ✨</h3>
+        <p>4 foto grid — premium polaroid style</p>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="/app.js"></script>
+<script>
+  document.querySelectorAll('.type-card').forEach(c=>{
+    c.onclick=()=>{RAIA.state.type=c.dataset.type;RAIA.go('choose-frame.html');};
+  });
+</script>
+</body>
+</html>

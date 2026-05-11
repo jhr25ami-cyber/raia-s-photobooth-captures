@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Edit Foto ✿ Raia Photobooth</title>
+<link rel="stylesheet" href="/style.css"/>
+</head>
+<body>
+<div class="app page-fade">
+  <nav class="nav">
+    <a class="brand" href="/welcome.html">
+      <div class="brand-logo">📷</div>
+      <div class="brand-name"><span>R</span><span>A</span><span>I</span><span>A</span><small>PHOTOBOOTH</small></div>
+    </a>
+    <button class="btn btn-ghost" id="backBtn">← Kamera</button>
+  </nav>
+  <main class="container" style="padding-bottom:40px">
+    <h2 class="page-title" style="font-size:32px">Edit Premium ✨</h2>
+    <p class="page-sub">Pilih filter favorit, atur tone, tambah sticker lucu.</p>
+    <div class="edit-layout">
+      <div class="card preview-stage">
+        <canvas id="finalCanvas"></canvas>
+      </div>
+      <div class="card tools">
+        <h3>✿ Filter Premium</h3>
+        <div class="filter-row" id="filterRow"></div>
+
+        <h3>🎚 Penyesuaian</h3>
+        <div class="slider-row"><label>Brightness <span id="brightnessVal">100%</span></label><input id="brightness" type="range" min="50" max="150" value="100"/></div>
+        <div class="slider-row"><label>Contrast <span id="contrastVal">100%</span></label><input id="contrast" type="range" min="50" max="150" value="100"/></div>
+        <div class="slider-row"><label>Saturation <span id="saturateVal">100%</span></label><input id="saturate" type="range" min="0" max="200" value="100"/></div>
+
+        <h3>🌸 Sticker</h3>
+        <div class="sticker-row">
+          <button>💖</button><button>⭐</button><button>🌸</button><button>✨</button>
+          <button>🎀</button><button>🍓</button><button>☁️</button><button>🌈</button>
+          <button>🦋</button><button>🍰</button>
+          <button class="btn" id="clearStickers" style="font-size:12px">Hapus semua</button>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn" id="undoBtn">↶ Undo</button>
+          <button class="btn" id="redoBtn">↷ Redo</button>
+          <button class="btn btn-primary" id="nextBtn" style="margin-left:auto">SAVE →</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="/app.js"></script>
+<script>initEditor();</script>
+</body>
+</html>
