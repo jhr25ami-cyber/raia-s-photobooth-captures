@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Kamera ✿ Raia Photobooth</title>
+<link rel="stylesheet" href="/style.css"/>
+</head>
+<body>
+<div class="app page-fade">
+  <nav class="nav">
+    <a class="brand" href="/welcome.html">
+      <div class="brand-logo">📷</div>
+      <div class="brand-name"><span>R</span><span>A</span><span>I</span><span>A</span><small>PHOTOBOOTH</small></div>
+    </a>
+    <button class="btn btn-ghost" id="backBtn">← Frame</button>
+  </nav>
+  <main class="container" style="padding-bottom:40px">
+    <h2 class="page-title" style="font-size:32px">Smile! ✿</h2>
+    <p class="page-sub">Atur posisi, lalu tekan TAKE PHOTO. Countdown 5 → 1 dan blitz!</p>
+    <div class="cam-layout">
+      <div>
+        <div class="cam-panel mirror" id="camPanel">
+          <video id="video" autoplay playsinline muted></video>
+          <div class="cam-overlay-top">
+            <button class="btn btn-ghost" id="mirrorBtn">🪞 Mirror ON/OFF</button>
+            <span class="btn btn-ghost" id="slotCounter">0 / 4</span>
+          </div>
+          <div class="countdown" id="countdown">5</div>
+          <div class="flash" id="flash"></div>
+        </div>
+        <div class="cam-actions">
+          <button class="btn btn-lg btn-primary" id="takeBtn">📸 TAKE PHOTO</button>
+          <button class="btn btn-lg btn-blue" id="nextBtn">NEXT →</button>
+        </div>
+      </div>
+      <div class="slot-side">
+        <h3>Frame Preview</h3>
+        <div id="frameStageWrap">
+          <div class="frame-stage" id="frameStage"></div>
+        </div>
+        <p style="margin-top:14px;font-size:13px;color:#8b6b55">Slot kosong = live preview. Klik × untuk hapus foto.</p>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="/app.js"></script>
+<script>initCamera();</script>
+</body>
+</html>

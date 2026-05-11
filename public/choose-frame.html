@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Pilih Frame ✿ Raia Photobooth</title>
+<link rel="stylesheet" href="/style.css"/>
+</head>
+<body>
+<div class="app page-fade">
+  <nav class="nav">
+    <a class="brand" href="/welcome.html">
+      <div class="brand-logo">📷</div>
+      <div class="brand-name"><span>R</span><span>A</span><span>I</span><span>A</span><small>PHOTOBOOTH</small></div>
+    </a>
+    <button class="btn btn-ghost" onclick="RAIA.go('choose-type.html')">← Kembali</button>
+  </nav>
+  <main class="container" style="padding-bottom:60px">
+    <h2 class="page-title">Pilih Frame Favoritmu</h2>
+    <p class="page-sub" id="frameSub">20 frame aesthetic siap dipakai ✿</p>
+    <div class="frame-grid" id="frameGrid"></div>
+  </main>
+</div>
+<script src="/app.js"></script>
+<script>
+  buildFrames(RAIA.state.type);
+  document.getElementById('frameSub').textContent =
+    (RAIA.state.type==='strip'?'Frame Strip':'Frame 4R') + ' — pilih satu untuk mulai foto ✿';
+</script>
+</body>
+</html>
