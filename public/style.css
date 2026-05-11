@@ -294,3 +294,72 @@ body::before{
   z-index:99;opacity:0;transition:opacity .3s;font-size:14px;
 }
 .toast.show{opacity:1}
+
+/* ===== DESKTOP-FIT LAYOUT ===== */
+@media (min-width: 900px) and (min-height: 600px){
+  html,body{height:100%;overflow:hidden}
+  .app{height:100vh;max-height:100vh;overflow:hidden}
+  .nav{padding:10px 28px}
+  .brand-logo{width:44px;height:44px;font-size:22px;border-radius:12px}
+  .brand-name{font-size:16px}
+  .brand-name small{font-size:9px;letter-spacing:2px}
+
+  /* Welcome: fill viewport */
+  .hero{padding:0 24px;flex:1;min-height:0}
+  .hero h1{font-size:clamp(40px,6.5vw,82px);margin:6px 0 12px}
+  .subtitle{margin-bottom:22px;padding:8px 18px;font-size:15px}
+  .btn-pop{padding:16px 44px;font-size:22px}
+
+  /* Generic page container */
+  .container{padding:0 24px !important;height:calc(100vh - 64px);overflow:hidden;display:flex;flex-direction:column}
+  .container > .page-title{margin:4px 0 4px;font-size:clamp(24px,3vw,38px) !important}
+  .container > .page-sub{margin-bottom:14px;font-size:14px}
+
+  /* choose-type */
+  .type-grid{flex:1;min-height:0;align-items:stretch;margin-top:0}
+  .type-card{padding:18px;display:flex;flex-direction:column}
+  .type-card .preview{flex:1;height:auto;min-height:0;margin-bottom:10px}
+  .type-card h3{font-size:18px}
+  .type-card p{font-size:12px}
+  .mock-strip div{width:100px;height:36px}
+  .mock-4r{width:160px;height:190px}
+
+  /* choose-frame */
+  .frame-grid{flex:1;min-height:0;overflow-y:auto;padding-right:6px;
+    grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;margin-top:0}
+  .frame-card{padding:8px}
+  .frame-card .name{font-size:11px;margin-top:4px}
+
+  /* camera */
+  .cam-layout{flex:1;min-height:0;margin-top:0;gap:18px}
+  .cam-layout > div:first-child{display:flex;flex-direction:column;min-height:0}
+  .cam-panel{flex:1;min-height:0;aspect-ratio:auto}
+  .cam-actions{margin-top:10px}
+  .btn-lg{padding:12px 28px;font-size:15px}
+  .countdown{font-size:140px}
+  .slot-side{padding:14px;overflow-y:auto}
+  .slot-side h3{font-size:15px;margin-bottom:8px}
+  .frame-stage.strip{max-width:150px}
+  .frame-stage.r4{max-width:240px}
+
+  /* editor */
+  .edit-layout{flex:1;min-height:0;margin-top:0;gap:18px}
+  .preview-stage{padding:14px;overflow:hidden}
+  .preview-stage canvas{max-height:100%;width:auto;object-fit:contain}
+  .tools{padding:16px;overflow-y:auto}
+  .tools h3{font-size:14px;margin:6px 0 6px}
+  .filter-row{gap:6px;margin-bottom:10px}
+  .filter-btn{font-size:10px;padding:4px}
+  .slider-row{margin-bottom:8px}
+  .sticker-row{margin-bottom:8px;gap:6px}
+  .sticker-row button{font-size:18px;padding:4px 8px}
+
+  /* save */
+  .save-grid{flex:1;min-height:0;margin-top:0;align-items:stretch}
+  .save-grid > .card{display:flex;flex-direction:column;overflow:hidden;padding:18px}
+  .save-grid img#finalImg{flex:1;min-height:0;object-fit:contain;max-height:100%}
+  .shots{overflow-y:auto;flex:1;min-height:0}
+
+  /* doodles smaller */
+  .doodle{font-size:30px !important}
+}
