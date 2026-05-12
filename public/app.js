@@ -458,25 +458,55 @@ function initSave(){
   document.getElementById('gifBtn').onclick=async()=>{
     const shots=RAIA.state.shots.filter(Boolean);
     if(!shots.length) return;
-    RAIA.toast('Membuat GIF...');
-    const w=480,h=270;
-    const gif=new GIF({workers:2,quality:10,width:w,height:h,workerScript:'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'});
-    for(const src of shots){
+    RAIA.toast('Membuat GIF dari kolase...');
+    // Render full collage frame, then animate by cycling: each frame highlights one photo
+    const baseCanvas=document.createElement('canvas');
+    await drawFrame(baseCanvas);
+    // scale down for GIF
+    const scale=Math.min(1, 540/baseCanvas.width);
+    const w=Math.round(baseCanvas.width*scale), h=Math.round(baseCanvas.height*scale);
+    const gif=new GIF({workers:2,quality:10,width:w,height:h,
+      workerScript:'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'});
+    // Frame 1: full collage
+    const fc=document.createElement('canvas');fc.width=w;fc.height=h;
+    fc.getContext('2d').drawImage(baseCanvas,0,0,w,h);
+    gif.addFrame(fc,{delay:900,copy:true});
+    // Frames 2..n+1: zoom into each photo
+    for(let i=0;i<shots.length;i++){
       await new Promise(res=>{
         const img=new Image();img.onload=()=>{
           const c=document.createElement('canvas');c.width=w;c.height=h;
           const cx=c.getContext('2d');
-          const ar=img.width/img.height,sar=w/h;let sx,sy,sw,sh;
-          if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
-          cx.drawImage(img,sx,sy,sw,sh,0,0,w,h);
-          gif.addFrame(c,{delay:600});res();
-        };img.src=src;
+          // background: dimmed collage
+          cx.drawImage(baseCanvas,0,0,w,h);
+          cx.fillStyle='rgba(91,58,41,.55)';cx.fillRect(0,0,w,h);
+          // foreground: this shot centered, cover-cropped
+          const pad=24, pw=w-pad*2, ph=h-pad*2;
+          const ar=img.width/img.height, sar=pw/ph;
+          let sx,sy,sw,sh;
+          if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
+          else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
+          cx.save();
+          const r=14;
+          cx.beginPath();
+          cx.moveTo(pad+r,pad);
+          cx.arcTo(pad+pw,pad,pad+pw,pad+ph,r);
+          cx.arcTo(pad+pw,pad+ph,pad,pad+ph,r);
+          cx.arcTo(pad,pad+ph,pad,pad,r);
+          cx.arcTo(pad,pad,pad+pw,pad,r);
+          cx.closePath();cx.clip();
+          cx.drawImage(img,sx,sy,sw,sh,pad,pad,pw,ph);
+          cx.restore();
+          gif.addFrame(c,{delay:600,copy:true});res();
+        };img.src=shots[i];
       });
     }
+    // Final frame: collage again
+    gif.addFrame(fc,{delay:900,copy:true});
     gif.on('finished',blob=>{
       const url=URL.createObjectURL(blob);
       const a=document.createElement('a');a.href=url;a.download=`raia-photobooth-${ts()}.gif`;a.click();
-      RAIA.toast('GIF tersimpan ✿');
+      RAIA.toast('GIF kolase tersimpan ✿');
     });
     gif.render();
   };
