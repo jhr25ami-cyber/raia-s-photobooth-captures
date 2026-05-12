@@ -20,8 +20,38 @@ const RAIA = {
     if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t);}
     t.textContent=msg;t.classList.add('show');
     clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1800);
+  },
+  loader(msg, progress){
+    const ov=document.getElementById('loader');if(!ov) return;
+    if(msg===false){ov.classList.remove('show');return;}
+    document.getElementById('loaderMsg').textContent=msg||'Processing photo...';
+    const bar=document.getElementById('loaderBar');
+    if(typeof progress==='number'){bar.classList.add('show');bar.querySelector('i').style.width=Math.round(progress*100)+'%';}
+    else{bar.classList.remove('show');}
+    ov.classList.add('show');
   }
 };
+
+// Image cache: decode once, reuse across renders
+const IMG_CACHE=new Map();
+function loadImg(src){
+  if(IMG_CACHE.has(src)) return Promise.resolve(IMG_CACHE.get(src));
+  return new Promise((res,rej)=>{
+    const i=new Image();i.onload=()=>{IMG_CACHE.set(src,i);res(i);};i.onerror=rej;i.src=src;
+  });
+}
+// Create downsampled thumbnail (max edge 800px) for responsive editor preview
+function makeThumb(src,maxEdge=800){
+  return loadImg(src).then(img=>{
+    const scale=Math.min(1,maxEdge/Math.max(img.width,img.height));
+    if(scale>=1) return src;
+    const c=document.createElement('canvas');
+    c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    return c.toDataURL('image/jpeg',0.85);
+  });
+}
+const _NOOP={
 
 // frame palettes (dummy generated)
 const FRAME_PALETTES=[
