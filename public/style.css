@@ -367,16 +367,20 @@ body::before{
   .frame-card .name{font-size:11px;margin-top:4px}
 
   /* camera */
-  .cam-layout{flex:1;min-height:0;margin-top:0;gap:18px}
+  .cam-layout{flex:1;min-height:0;margin-top:0;gap:18px;grid-template-columns:1.6fr 1fr;align-items:stretch}
   .cam-layout > div:first-child{display:flex;flex-direction:column;min-height:0}
   .cam-panel{flex:1;min-height:0;aspect-ratio:auto}
-  .cam-actions{margin-top:10px}
+  .cam-actions{margin-top:10px;flex-shrink:0}
   .btn-lg{padding:12px 28px;font-size:15px}
   .countdown{font-size:140px}
-  .slot-side{padding:14px;overflow-y:auto}
-  .slot-side h3{font-size:15px;margin-bottom:8px}
-  .frame-stage.strip{max-width:150px}
-  .frame-stage.r4{max-width:240px}
+  .slot-side{padding:12px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .slot-side h3{font-size:14px;margin-bottom:6px}
+  .slot-side > p{font-size:11px;margin-top:6px}
+  #frameStageWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px !important}
+  .frame-stage{max-height:100%;width:auto}
+  .frame-stage.strip{max-width:130px;max-height:100%}
+  .frame-stage.r4{max-width:230px;max-height:100%}
+  .frame-stage.strip .slot,.frame-stage.r4 .slot{min-height:0}
 
   /* editor */
   .edit-layout{flex:1;min-height:0;margin-top:0;gap:18px}
