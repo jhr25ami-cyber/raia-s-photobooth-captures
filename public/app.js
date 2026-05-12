@@ -466,11 +466,16 @@ function initEditor(){
 
 function initSave(){
   const canvas=document.getElementById('finalCanvas');
-  drawFrame(canvas).then(()=>{
-    const data=canvas.toDataURL('image/png');
-    document.getElementById('finalImg').src=data;
-    RAIA.state.final=data;
-  });
+  RAIA.loader('Menyiapkan hasil akhir...');
+  // preload first, then render
+  Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
+    .then(()=>drawFrame(canvas))
+    .then(()=>{
+      const data=canvas.toDataURL('image/png');
+      document.getElementById('finalImg').src=data;
+      RAIA.state.final=data;
+      RAIA.loader(false);
+    }).catch(e=>{console.error(e);RAIA.loader(false);});
   const shotsEl=document.getElementById('shotsList');
   RAIA.state.shots.filter(Boolean).forEach((src,i)=>{
     const img=document.createElement('img');img.src=src;img.alt='shot '+(i+1);
