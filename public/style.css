@@ -313,6 +313,24 @@ body::before{
 .carousel-arrow:hover{transform:scale(1.1)}
 .carousel-arrow:active{transform:scale(.95)}
 
+/* ===== LOADING OVERLAY ===== */
+.loading-overlay{
+  position:fixed;inset:0;z-index:200;display:none;
+  align-items:center;justify-content:center;flex-direction:column;gap:18px;
+  background:rgba(255,247,240,.85);backdrop-filter:blur(6px);
+}
+.loading-overlay.show{display:flex}
+.loading-overlay .spinner{
+  width:64px;height:64px;border-radius:50%;
+  border:6px solid #ffd9bf;border-top-color:#ff8fb1;
+  animation:spin 1s linear infinite;
+}
+.loading-overlay .msg{font-weight:600;color:var(--brown);font-size:16px;text-align:center;max-width:80%}
+.loading-overlay .bar{width:240px;height:10px;background:#ffe2d0;border-radius:999px;overflow:hidden;display:none}
+.loading-overlay .bar.show{display:block}
+.loading-overlay .bar > i{display:block;height:100%;background:linear-gradient(90deg,#ffb6c8,#ff8fb1);width:0%;transition:width .25s}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 /* ===== DESKTOP-FIT LAYOUT ===== */
 @media (min-width: 900px) and (min-height: 500px){
   html,body{height:100%;overflow:hidden}
