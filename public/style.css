@@ -295,8 +295,26 @@ body::before{
 }
 .toast.show{opacity:1}
 
+/* ===== FRAME CAROUSEL ===== */
+.frame-carousel{position:relative;display:flex;align-items:center;gap:10px;margin-top:14px;flex:1;min-height:0}
+.frame-track{
+  display:flex;gap:16px;overflow-x:auto;scroll-behavior:smooth;
+  padding:14px 6px;scroll-snap-type:x mandatory;flex:1;
+  scrollbar-width:thin;
+}
+.frame-track::-webkit-scrollbar{height:8px}
+.frame-track::-webkit-scrollbar-thumb{background:#ffb6c8;border-radius:4px}
+.frame-track .frame-card{flex:0 0 200px;scroll-snap-align:center}
+.carousel-arrow{
+  width:48px;height:48px;border-radius:50%;border:none;cursor:pointer;
+  background:linear-gradient(135deg,#ffb6c8,#ff8fb1);color:#fff;font-size:22px;font-weight:700;
+  box-shadow:var(--shadow-soft);flex-shrink:0;transition:transform .2s;
+}
+.carousel-arrow:hover{transform:scale(1.1)}
+.carousel-arrow:active{transform:scale(.95)}
+
 /* ===== DESKTOP-FIT LAYOUT ===== */
-@media (min-width: 900px) and (min-height: 600px){
+@media (min-width: 900px) and (min-height: 500px){
   html,body{height:100%;overflow:hidden}
   .app{height:100vh;max-height:100vh;overflow:hidden}
   .nav{padding:10px 28px}
