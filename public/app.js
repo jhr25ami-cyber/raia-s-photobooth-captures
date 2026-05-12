@@ -496,57 +496,56 @@ function initSave(){
   document.getElementById('gifBtn').onclick=async()=>{
     const shots=RAIA.state.shots.filter(Boolean);
     if(!shots.length) return;
-    RAIA.toast('Membuat GIF dari kolase...');
-    // Render full collage frame, then animate by cycling: each frame highlights one photo
-    const baseCanvas=document.createElement('canvas');
-    await drawFrame(baseCanvas);
-    // scale down for GIF
-    const scale=Math.min(1, 540/baseCanvas.width);
-    const w=Math.round(baseCanvas.width*scale), h=Math.round(baseCanvas.height*scale);
-    const gif=new GIF({workers:2,quality:10,width:w,height:h,
-      workerScript:'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'});
-    // Frame 1: full collage
-    const fc=document.createElement('canvas');fc.width=w;fc.height=h;
-    fc.getContext('2d').drawImage(baseCanvas,0,0,w,h);
-    gif.addFrame(fc,{delay:900,copy:true});
-    // Frames 2..n+1: zoom into each photo
-    for(let i=0;i<shots.length;i++){
-      await new Promise(res=>{
-        const img=new Image();img.onload=()=>{
-          const c=document.createElement('canvas');c.width=w;c.height=h;
-          const cx=c.getContext('2d');
-          // background: dimmed collage
-          cx.drawImage(baseCanvas,0,0,w,h);
-          cx.fillStyle='rgba(91,58,41,.55)';cx.fillRect(0,0,w,h);
-          // foreground: this shot centered, cover-cropped
-          const pad=24, pw=w-pad*2, ph=h-pad*2;
-          const ar=img.width/img.height, sar=pw/ph;
-          let sx,sy,sw,sh;
-          if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
-          else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
-          cx.save();
-          const r=14;
-          cx.beginPath();
-          cx.moveTo(pad+r,pad);
-          cx.arcTo(pad+pw,pad,pad+pw,pad+ph,r);
-          cx.arcTo(pad+pw,pad+ph,pad,pad+ph,r);
-          cx.arcTo(pad,pad+ph,pad,pad,r);
-          cx.arcTo(pad,pad,pad+pw,pad,r);
-          cx.closePath();cx.clip();
-          cx.drawImage(img,sx,sy,sw,sh,pad,pad,pw,ph);
-          cx.restore();
-          gif.addFrame(c,{delay:600,copy:true});res();
-        };img.src=shots[i];
+    if(typeof GIF==='undefined'){RAIA.toast('Library GIF belum siap, coba lagi');return;}
+    RAIA.loader('Membuat GIF... 0%', 0);
+    try{
+      const baseCanvas=document.createElement('canvas');
+      await drawFrame(baseCanvas);
+      const scale=Math.min(1, 540/baseCanvas.width);
+      const w=Math.round(baseCanvas.width*scale), h=Math.round(baseCanvas.height*scale);
+      const gif=new GIF({workers:2,quality:10,width:w,height:h,workerScript:'/vendor/gif.worker.js'});
+      const fc=document.createElement('canvas');fc.width=w;fc.height=h;
+      fc.getContext('2d').drawImage(baseCanvas,0,0,w,h);
+      gif.addFrame(fc,{delay:900,copy:true});
+      for(let i=0;i<shots.length;i++){
+        const img=await loadImg(shots[i]);
+        const c=document.createElement('canvas');c.width=w;c.height=h;
+        const cx=c.getContext('2d');
+        cx.drawImage(baseCanvas,0,0,w,h);
+        cx.fillStyle='rgba(91,58,41,.55)';cx.fillRect(0,0,w,h);
+        const pad=24, pw=w-pad*2, ph=h-pad*2;
+        const ar=img.width/img.height, sar=pw/ph;
+        let sx,sy,sw,sh;
+        if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
+        else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
+        cx.save();
+        const r=14;
+        cx.beginPath();
+        cx.moveTo(pad+r,pad);
+        cx.arcTo(pad+pw,pad,pad+pw,pad+ph,r);
+        cx.arcTo(pad+pw,pad+ph,pad,pad+ph,r);
+        cx.arcTo(pad,pad+ph,pad,pad,r);
+        cx.arcTo(pad,pad,pad+pw,pad,r);
+        cx.closePath();cx.clip();
+        cx.drawImage(img,sx,sy,sw,sh,pad,pad,pw,ph);
+        cx.restore();
+        gif.addFrame(c,{delay:600,copy:true});
+      }
+      gif.addFrame(fc,{delay:900,copy:true});
+      gif.on('progress',p=>RAIA.loader('Membuat GIF... '+Math.round(p*100)+'%', p));
+      gif.on('finished',blob=>{
+        // ensure proper mime
+        const gifBlob=blob.type==='image/gif'?blob:new Blob([blob],{type:'image/gif'});
+        const url=URL.createObjectURL(gifBlob);
+        const a=document.createElement('a');a.href=url;a.download=`raia-photobooth-${ts()}.gif`;
+        document.body.appendChild(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),2000);
+        RAIA.loader(false);
+        RAIA.toast('GIF kolase tersimpan ✿');
       });
-    }
-    // Final frame: collage again
-    gif.addFrame(fc,{delay:900,copy:true});
-    gif.on('finished',blob=>{
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');a.href=url;a.download=`raia-photobooth-${ts()}.gif`;a.click();
-      RAIA.toast('GIF kolase tersimpan ✿');
-    });
-    gif.render();
+      gif.on('abort',()=>{RAIA.loader(false);RAIA.toast('GIF dibatalkan');});
+      gif.render();
+    }catch(e){console.error(e);RAIA.loader(false);RAIA.toast('Gagal buat GIF: '+e.message);}
   };
 
   document.getElementById('againBtn').onclick=()=>{
