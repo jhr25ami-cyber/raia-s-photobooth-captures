@@ -20,8 +20,38 @@ const RAIA = {
     if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t);}
     t.textContent=msg;t.classList.add('show');
     clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1800);
+  },
+  loader(msg, progress){
+    const ov=document.getElementById('loader');if(!ov) return;
+    if(msg===false){ov.classList.remove('show');return;}
+    document.getElementById('loaderMsg').textContent=msg||'Processing photo...';
+    const bar=document.getElementById('loaderBar');
+    if(typeof progress==='number'){bar.classList.add('show');bar.querySelector('i').style.width=Math.round(progress*100)+'%';}
+    else{bar.classList.remove('show');}
+    ov.classList.add('show');
   }
 };
+
+// Image cache: decode once, reuse across renders
+const IMG_CACHE=new Map();
+function loadImg(src){
+  if(IMG_CACHE.has(src)) return Promise.resolve(IMG_CACHE.get(src));
+  return new Promise((res,rej)=>{
+    const i=new Image();i.onload=()=>{IMG_CACHE.set(src,i);res(i);};i.onerror=rej;i.src=src;
+  });
+}
+// Create downsampled thumbnail (max edge 800px) for responsive editor preview
+function makeThumb(src,maxEdge=800){
+  return loadImg(src).then(img=>{
+    const scale=Math.min(1,maxEdge/Math.max(img.width,img.height));
+    if(scale>=1) return src;
+    const c=document.createElement('canvas');
+    c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    return c.toDataURL('image/jpeg',0.85);
+  });
+}
+
 
 // frame palettes (dummy generated)
 const FRAME_PALETTES=[
@@ -249,10 +279,17 @@ async function initCamera(){
     flash.classList.remove('fire');void flash.offsetWidth;flash.classList.add('fire');
     shutter();
 
+    RAIA.loader('Menyimpan foto HD...');
     const dataUrl=await captureHD();
     const ns=[...shots];ns[idx]=dataUrl;RAIA.state.shots=ns;
+    IMG_CACHE.delete(dataUrl);
     renderSlots();
+    RAIA.loader(false);
     document.getElementById('takeBtn').disabled=false;
+    // auto-advance when all slots filled
+    if(ns.filter(Boolean).length>=slotsCount){
+      setTimeout(()=>RAIA.go('editor.html'), 500);
+    }
   };
 
   document.getElementById('nextBtn').onclick=()=>{
@@ -325,16 +362,14 @@ function drawFrame(canvas){
   // filter
   ctx.filter=`${FILTERS[EDIT.filter].css} brightness(${EDIT.brightness}%) contrast(${EDIT.contrast}%) saturate(${EDIT.saturate}%)`;
 
-  // draw slots
-  return Promise.all(layout.map((slot,i)=>new Promise(res=>{
-    if(!shots[i]){res();return;}
-    const img=new Image();img.onload=()=>{
-      // cover crop
+  // draw slots — use cached decoded images
+  return Promise.all(layout.map((slot,i)=>{
+    if(!shots[i]) return Promise.resolve();
+    return loadImg(shots[i]).then(img=>{
       const ar=img.width/img.height, sar=slot.w/slot.h;
       let sx,sy,sw,sh;
       if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
       else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
-      // rounded clip
       ctx.save();
       const r=12;
       ctx.beginPath();
@@ -346,9 +381,8 @@ function drawFrame(canvas){
       ctx.closePath();ctx.clip();
       ctx.drawImage(img,sx,sy,sw,sh,slot.x,slot.y,slot.w,slot.h);
       ctx.restore();
-      res();
-    };img.src=shots[i];
-  }))).then(()=>{
+    });
+  })).then(()=>{
     ctx.filter='none';
     // brand label
     ctx.fillStyle='rgba(255,255,255,.85)';
@@ -411,8 +445,10 @@ function initEditor(){
     syncControls();render();
   };
   document.getElementById('nextBtn').onclick=async()=>{
+    RAIA.loader('Menjahit foto HD...');
     await render();
     RAIA.state.final=canvas.toDataURL('image/png');
+    RAIA.loader(false);
     RAIA.go('save.html');
   };
   document.getElementById('backBtn').onclick=()=>RAIA.go('camera.html');
@@ -428,16 +464,27 @@ function initEditor(){
   }
 
   async function render(){await drawFrame(canvas);}
-  pushHistory();render();
+  // Preload all shot images first so first paint is instant after this
+  RAIA.loader('Memuat foto HD...');
+  pushHistory();
+  Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
+    .then(()=>render())
+    .then(()=>RAIA.loader(false))
+    .catch(e=>{console.error(e);RAIA.loader(false);});
 }
 
 function initSave(){
   const canvas=document.getElementById('finalCanvas');
-  drawFrame(canvas).then(()=>{
-    const data=canvas.toDataURL('image/png');
-    document.getElementById('finalImg').src=data;
-    RAIA.state.final=data;
-  });
+  RAIA.loader('Menyiapkan hasil akhir...');
+  // preload first, then render
+  Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
+    .then(()=>drawFrame(canvas))
+    .then(()=>{
+      const data=canvas.toDataURL('image/png');
+      document.getElementById('finalImg').src=data;
+      RAIA.state.final=data;
+      RAIA.loader(false);
+    }).catch(e=>{console.error(e);RAIA.loader(false);});
   const shotsEl=document.getElementById('shotsList');
   RAIA.state.shots.filter(Boolean).forEach((src,i)=>{
     const img=document.createElement('img');img.src=src;img.alt='shot '+(i+1);
@@ -458,57 +505,56 @@ function initSave(){
   document.getElementById('gifBtn').onclick=async()=>{
     const shots=RAIA.state.shots.filter(Boolean);
     if(!shots.length) return;
-    RAIA.toast('Membuat GIF dari kolase...');
-    // Render full collage frame, then animate by cycling: each frame highlights one photo
-    const baseCanvas=document.createElement('canvas');
-    await drawFrame(baseCanvas);
-    // scale down for GIF
-    const scale=Math.min(1, 540/baseCanvas.width);
-    const w=Math.round(baseCanvas.width*scale), h=Math.round(baseCanvas.height*scale);
-    const gif=new GIF({workers:2,quality:10,width:w,height:h,
-      workerScript:'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'});
-    // Frame 1: full collage
-    const fc=document.createElement('canvas');fc.width=w;fc.height=h;
-    fc.getContext('2d').drawImage(baseCanvas,0,0,w,h);
-    gif.addFrame(fc,{delay:900,copy:true});
-    // Frames 2..n+1: zoom into each photo
-    for(let i=0;i<shots.length;i++){
-      await new Promise(res=>{
-        const img=new Image();img.onload=()=>{
-          const c=document.createElement('canvas');c.width=w;c.height=h;
-          const cx=c.getContext('2d');
-          // background: dimmed collage
-          cx.drawImage(baseCanvas,0,0,w,h);
-          cx.fillStyle='rgba(91,58,41,.55)';cx.fillRect(0,0,w,h);
-          // foreground: this shot centered, cover-cropped
-          const pad=24, pw=w-pad*2, ph=h-pad*2;
-          const ar=img.width/img.height, sar=pw/ph;
-          let sx,sy,sw,sh;
-          if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
-          else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
-          cx.save();
-          const r=14;
-          cx.beginPath();
-          cx.moveTo(pad+r,pad);
-          cx.arcTo(pad+pw,pad,pad+pw,pad+ph,r);
-          cx.arcTo(pad+pw,pad+ph,pad,pad+ph,r);
-          cx.arcTo(pad,pad+ph,pad,pad,r);
-          cx.arcTo(pad,pad,pad+pw,pad,r);
-          cx.closePath();cx.clip();
-          cx.drawImage(img,sx,sy,sw,sh,pad,pad,pw,ph);
-          cx.restore();
-          gif.addFrame(c,{delay:600,copy:true});res();
-        };img.src=shots[i];
+    if(typeof GIF==='undefined'){RAIA.toast('Library GIF belum siap, coba lagi');return;}
+    RAIA.loader('Membuat GIF... 0%', 0);
+    try{
+      const baseCanvas=document.createElement('canvas');
+      await drawFrame(baseCanvas);
+      const scale=Math.min(1, 540/baseCanvas.width);
+      const w=Math.round(baseCanvas.width*scale), h=Math.round(baseCanvas.height*scale);
+      const gif=new GIF({workers:2,quality:10,width:w,height:h,workerScript:'/vendor/gif.worker.js'});
+      const fc=document.createElement('canvas');fc.width=w;fc.height=h;
+      fc.getContext('2d').drawImage(baseCanvas,0,0,w,h);
+      gif.addFrame(fc,{delay:900,copy:true});
+      for(let i=0;i<shots.length;i++){
+        const img=await loadImg(shots[i]);
+        const c=document.createElement('canvas');c.width=w;c.height=h;
+        const cx=c.getContext('2d');
+        cx.drawImage(baseCanvas,0,0,w,h);
+        cx.fillStyle='rgba(91,58,41,.55)';cx.fillRect(0,0,w,h);
+        const pad=24, pw=w-pad*2, ph=h-pad*2;
+        const ar=img.width/img.height, sar=pw/ph;
+        let sx,sy,sw,sh;
+        if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
+        else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
+        cx.save();
+        const r=14;
+        cx.beginPath();
+        cx.moveTo(pad+r,pad);
+        cx.arcTo(pad+pw,pad,pad+pw,pad+ph,r);
+        cx.arcTo(pad+pw,pad+ph,pad,pad+ph,r);
+        cx.arcTo(pad,pad+ph,pad,pad,r);
+        cx.arcTo(pad,pad,pad+pw,pad,r);
+        cx.closePath();cx.clip();
+        cx.drawImage(img,sx,sy,sw,sh,pad,pad,pw,ph);
+        cx.restore();
+        gif.addFrame(c,{delay:600,copy:true});
+      }
+      gif.addFrame(fc,{delay:900,copy:true});
+      gif.on('progress',p=>RAIA.loader('Membuat GIF... '+Math.round(p*100)+'%', p));
+      gif.on('finished',blob=>{
+        // ensure proper mime
+        const gifBlob=blob.type==='image/gif'?blob:new Blob([blob],{type:'image/gif'});
+        const url=URL.createObjectURL(gifBlob);
+        const a=document.createElement('a');a.href=url;a.download=`raia-photobooth-${ts()}.gif`;
+        document.body.appendChild(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),2000);
+        RAIA.loader(false);
+        RAIA.toast('GIF kolase tersimpan ✿');
       });
-    }
-    // Final frame: collage again
-    gif.addFrame(fc,{delay:900,copy:true});
-    gif.on('finished',blob=>{
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');a.href=url;a.download=`raia-photobooth-${ts()}.gif`;a.click();
-      RAIA.toast('GIF kolase tersimpan ✿');
-    });
-    gif.render();
+      gif.on('abort',()=>{RAIA.loader(false);RAIA.toast('GIF dibatalkan');});
+      gif.render();
+    }catch(e){console.error(e);RAIA.loader(false);RAIA.toast('Gagal buat GIF: '+e.message);}
   };
 
   document.getElementById('againBtn').onclick=()=>{
