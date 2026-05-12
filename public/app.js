@@ -455,7 +455,13 @@ function initEditor(){
   }
 
   async function render(){await drawFrame(canvas);}
-  pushHistory();render();
+  // Preload all shot images first so first paint is instant after this
+  RAIA.loader('Memuat foto HD...');
+  pushHistory();
+  Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
+    .then(()=>render())
+    .then(()=>RAIA.loader(false))
+    .catch(e=>{console.error(e);RAIA.loader(false);});
 }
 
 function initSave(){
