@@ -438,8 +438,10 @@ function initEditor(){
     syncControls();render();
   };
   document.getElementById('nextBtn').onclick=async()=>{
+    RAIA.loader('Menjahit foto HD...');
     await render();
     RAIA.state.final=canvas.toDataURL('image/png');
+    RAIA.loader(false);
     RAIA.go('save.html');
   };
   document.getElementById('backBtn').onclick=()=>RAIA.go('camera.html');
