@@ -151,15 +151,34 @@ async function initCamera(){
   };
   camPanel.classList.add('mirror');
 
-  // start stream
+  // start stream — lightweight preview, capture at max resolution
+  let imageCapture=null, maxPhotoSize={width:1920,height:1080};
   try{
     const stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:'user',width:{ideal:1920},height:{ideal:1080}},
+      video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}},
       audio:false
     });
     video.srcObject=stream;
     await video.play();
     renderSlots();
+    // Setup HD capture via ImageCapture API
+    const track=stream.getVideoTracks()[0];
+    if('ImageCapture' in window){
+      try{
+        imageCapture=new ImageCapture(track);
+        const caps=await imageCapture.getPhotoCapabilities();
+        if(caps.imageWidth && caps.imageHeight){
+          maxPhotoSize={width:caps.imageWidth.max||1920,height:caps.imageHeight.max||1080};
+        }
+      }catch(e){imageCapture=null;}
+    }
+    // fallback: try to get max from track settings
+    if(!imageCapture){
+      const settings=track.getSettings();
+      const tcaps=track.getCapabilities?.();
+      if(tcaps?.width?.max) maxPhotoSize={width:tcaps.width.max,height:tcaps.height.max};
+      else maxPhotoSize={width:settings.width||1280,height:settings.height||720};
+    }
   }catch(e){
     RAIA.toast('Tidak bisa akses kamera: '+e.message);
     console.error(e);
@@ -190,6 +209,30 @@ async function initCamera(){
     }catch{}
   }
 
+  async function captureHD(){
+    // try ImageCapture.takePhoto for max hardware resolution
+    if(imageCapture){
+      try{
+        const blob=await imageCapture.takePhoto();
+        const bmp=await createImageBitmap(blob);
+        const cnv=document.createElement('canvas');
+        cnv.width=bmp.width;cnv.height=bmp.height;
+        const cx=cnv.getContext('2d');
+        if(mirror){cx.translate(cnv.width,0);cx.scale(-1,1);}
+        cx.drawImage(bmp,0,0);
+        return cnv.toDataURL('image/jpeg',0.95);
+      }catch(e){console.warn('ImageCapture failed, fallback',e);}
+    }
+    // fallback: draw from video at max possible resolution
+    const cnv=document.createElement('canvas');
+    cnv.width=Math.max(video.videoWidth,maxPhotoSize.width);
+    cnv.height=Math.max(video.videoHeight,maxPhotoSize.height);
+    const cx=cnv.getContext('2d');
+    if(mirror){cx.translate(cnv.width,0);cx.scale(-1,1);}
+    cx.drawImage(video,0,0,cnv.width,cnv.height);
+    return cnv.toDataURL('image/jpeg',0.95);
+  }
+
   document.getElementById('takeBtn').onclick=async()=>{
     const shots=RAIA.state.shots;
     const slots=stage.querySelectorAll('.slot');
@@ -206,14 +249,7 @@ async function initCamera(){
     flash.classList.remove('fire');void flash.offsetWidth;flash.classList.add('fire');
     shutter();
 
-    // capture HD
-    const cnv=document.createElement('canvas');
-    cnv.width=video.videoWidth;cnv.height=video.videoHeight;
-    const cx=cnv.getContext('2d');
-    if(mirror){cx.translate(cnv.width,0);cx.scale(-1,1);}
-    cx.drawImage(video,0,0,cnv.width,cnv.height);
-    const dataUrl=cnv.toDataURL('image/jpeg',0.92);
-
+    const dataUrl=await captureHD();
     const ns=[...shots];ns[idx]=dataUrl;RAIA.state.shots=ns;
     renderSlots();
     document.getElementById('takeBtn').disabled=false;
