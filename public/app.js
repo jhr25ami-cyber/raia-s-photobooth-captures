@@ -355,16 +355,14 @@ function drawFrame(canvas){
   // filter
   ctx.filter=`${FILTERS[EDIT.filter].css} brightness(${EDIT.brightness}%) contrast(${EDIT.contrast}%) saturate(${EDIT.saturate}%)`;
 
-  // draw slots
-  return Promise.all(layout.map((slot,i)=>new Promise(res=>{
-    if(!shots[i]){res();return;}
-    const img=new Image();img.onload=()=>{
-      // cover crop
+  // draw slots — use cached decoded images
+  return Promise.all(layout.map((slot,i)=>{
+    if(!shots[i]) return Promise.resolve();
+    return loadImg(shots[i]).then(img=>{
       const ar=img.width/img.height, sar=slot.w/slot.h;
       let sx,sy,sw,sh;
       if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
       else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
-      // rounded clip
       ctx.save();
       const r=12;
       ctx.beginPath();
@@ -376,9 +374,8 @@ function drawFrame(canvas){
       ctx.closePath();ctx.clip();
       ctx.drawImage(img,sx,sy,sw,sh,slot.x,slot.y,slot.w,slot.h);
       ctx.restore();
-      res();
-    };img.src=shots[i];
-  }))).then(()=>{
+    });
+  })).then(()=>{
     ctx.filter='none';
     // brand label
     ctx.fillStyle='rgba(255,255,255,.85)';
