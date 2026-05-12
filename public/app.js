@@ -279,10 +279,17 @@ async function initCamera(){
     flash.classList.remove('fire');void flash.offsetWidth;flash.classList.add('fire');
     shutter();
 
+    RAIA.loader('Menyimpan foto HD...');
     const dataUrl=await captureHD();
     const ns=[...shots];ns[idx]=dataUrl;RAIA.state.shots=ns;
+    IMG_CACHE.delete(dataUrl);
     renderSlots();
+    RAIA.loader(false);
     document.getElementById('takeBtn').disabled=false;
+    // auto-advance when all slots filled
+    if(ns.filter(Boolean).length>=slotsCount){
+      setTimeout(()=>RAIA.go('editor.html'), 500);
+    }
   };
 
   document.getElementById('nextBtn').onclick=()=>{
