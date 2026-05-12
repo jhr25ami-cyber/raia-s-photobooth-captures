@@ -51,7 +51,7 @@ function makeThumb(src,maxEdge=800){
     return c.toDataURL('image/jpeg',0.85);
   });
 }
-const _NOOP={
+
 
 // frame palettes (dummy generated)
 const FRAME_PALETTES=[
