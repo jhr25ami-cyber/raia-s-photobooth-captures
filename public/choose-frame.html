@@ -18,14 +18,21 @@
   <main class="container" style="padding-bottom:60px">
     <h2 class="page-title">Pilih Frame Favoritmu</h2>
     <p class="page-sub" id="frameSub">20 frame aesthetic siap dipakai ✿</p>
-    <div class="frame-grid" id="frameGrid"></div>
+    <div class="frame-carousel">
+      <button class="carousel-arrow" id="prevFrame" aria-label="Prev">‹</button>
+      <div class="frame-track" id="frameGrid"></div>
+      <button class="carousel-arrow" id="nextFrame" aria-label="Next">›</button>
+    </div>
   </main>
 </div>
 <script src="/app.js"></script>
 <script>
   buildFrames(RAIA.state.type);
   document.getElementById('frameSub').textContent =
-    (RAIA.state.type==='strip'?'Frame Strip':'Frame 4R') + ' — pilih satu untuk mulai foto ✿';
+    (RAIA.state.type==='strip'?'Frame Strip':'Frame 4R') + ' — geser ◀ ▶ untuk pilih ✿';
+  const track=document.getElementById('frameGrid');
+  document.getElementById('prevFrame').onclick=()=>track.scrollBy({left:-240,behavior:'smooth'});
+  document.getElementById('nextFrame').onclick=()=>track.scrollBy({left:240,behavior:'smooth'});
 </script>
 </body>
 </html>
