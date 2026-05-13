@@ -68,10 +68,29 @@ const FRAME_NAMES=[
   'Aurora','Pastel Dust','Cotton Candy','Fairy Mist','Princess','Baby Cloud'
 ];
 
+function loadCustomFrames(){try{return JSON.parse(localStorage.getItem('raia_custom_frames')||'[]')}catch{return[]}}
+function getCustomFrame(id){
+  if(!id||!id.startsWith('custom-')) return null;
+  const cid=id.slice(7);
+  return loadCustomFrames().find(f=>f.id===cid)||null;
+}
+
 function buildFrames(type){
   const grid=document.getElementById('frameGrid');
   if(!grid) return;
   grid.innerHTML='';
+  const customs=loadCustomFrames().filter(f=>f.category===type);
+  customs.forEach(f=>{
+    const card=document.createElement('div');
+    card.className='frame-card';
+    card.innerHTML=`
+      <div class="frame-thumb ${type==='strip'?'strip':''}" style="background:#fff url('${f.src}') center/contain no-repeat;border:2px dashed #ff8fb1;">
+        <span style="background:rgba(255,143,177,.85);padding:2px 8px;border-radius:6px;align-self:flex-start;color:#fff">CUSTOM</span>
+      </div>
+      <span class="name">${f.name}</span>`;
+    card.onclick=()=>{RAIA.state.frame='custom-'+f.id;RAIA.state.shots=[];RAIA.go('camera.html');};
+    grid.appendChild(card);
+  });
   for(let i=0;i<20;i++){
     const id='frame-'+(i+1);
     const [a,b]=FRAME_PALETTES[i];
@@ -93,18 +112,23 @@ function buildFrames(type){
 }
 
 function getFrameStyle(){
-  const idx=parseInt((RAIA.state.frame||'frame-1').split('-')[1])-1;
+  const f=RAIA.state.frame||'frame-1';
+  if(f.startsWith('custom-')) return ['#ffd9bf','#ffb6c8'];
+  const idx=parseInt(f.split('-')[1])-1;
   return FRAME_PALETTES[idx]||FRAME_PALETTES[0];
 }
 function getFrameName(){
-  const idx=parseInt((RAIA.state.frame||'frame-1').split('-')[1])-1;
+  const f=RAIA.state.frame||'frame-1';
+  if(f.startsWith('custom-')){const c=getCustomFrame(f);return c?c.name:'Custom Frame';}
+  const idx=parseInt(f.split('-')[1])-1;
   return FRAME_NAMES[idx]||'Raia Frame';
 }
 
 /* ========== CAMERA ========== */
 async function initCamera(){
   const type=RAIA.state.type;
-  const slotsCount = type==='strip'?4:4;
+  const customF=getCustomFrame(RAIA.state.frame);
+  const slotsCount = customF? customF.slots.length : 4;
   const stage=document.getElementById('frameStage');
   const stageWrap=document.getElementById('frameStageWrap');
   const [c1,c2]=getFrameStyle();
@@ -332,20 +356,51 @@ function pushHistory(){
 function drawFrame(canvas){
   const type=RAIA.state.type;
   const shots=RAIA.state.shots.filter(Boolean);
-  const [c1,c2]=getFrameStyle();
   const ctx=canvas.getContext('2d');
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  const filterCss=`${FILTERS[EDIT.filter].css} brightness(${EDIT.brightness}%) contrast(${EDIT.contrast}%) saturate(${EDIT.saturate}%)`;
 
-  // dimensions
+  // ===== CUSTOM FRAME PATH =====
+  const customF=getCustomFrame(RAIA.state.frame);
+  if(customF){
+    return loadImg(customF.src).then(frameImg=>{
+      const W=frameImg.naturalWidth, H=frameImg.naturalHeight;
+      canvas.width=W;canvas.height=H;
+      ctx.clearRect(0,0,W,H);
+      // photo layer (with filter)
+      ctx.filter=filterCss;
+      const tasks=customF.slots.map((s,i)=>{
+        if(!shots[i]) return Promise.resolve();
+        return loadImg(shots[i]).then(img=>{
+          const dw=s.w*W, dh=s.h*H, dx=s.x*W, dy=s.y*H;
+          const ar=img.width/img.height, sar=dw/dh;
+          let sx,sy,sw,sh;
+          if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
+          else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
+          ctx.save();
+          ctx.translate(dx+dw/2,dy+dh/2);
+          ctx.rotate(((s.rot||0)*Math.PI)/180);
+          ctx.drawImage(img,sx,sy,sw,sh,-dw/2,-dh/2,dw,dh);
+          ctx.restore();
+        });
+      });
+      return Promise.all(tasks).then(()=>{
+        ctx.filter='none';
+        // overlay PNG on top
+        ctx.drawImage(frameImg,0,0,W,H);
+      });
+    });
+  }
+
+  // ===== DEFAULT FRAME PATH =====
+  const [c1,c2]=getFrameStyle();
   let W,H,layout;
   if(type==='strip'){
-    W=600;H=1500;
-    layout=[];
+    W=600;H=1500;layout=[];
     const slotW=520,slotH=300,startY=40,gap=20;
     for(let i=0;i<4;i++) layout.push({x:40,y:startY+i*(slotH+gap),w:slotW,h:slotH});
   } else {
-    W=900;H=1200;
-    layout=[];
+    W=900;H=1200;layout=[];
     const sw=400,sh=400,gx=40,gy=40,startX=40,startY=40;
     for(let i=0;i<4;i++){
       const r=Math.floor(i/2),c=i%2;
@@ -353,23 +408,15 @@ function drawFrame(canvas){
     }
   }
   canvas.width=W;canvas.height=H;
-
-  // bg gradient
   const grd=ctx.createLinearGradient(0,0,W,H);
   grd.addColorStop(0,c1);grd.addColorStop(1,c2);
   ctx.fillStyle=grd;ctx.fillRect(0,0,W,H);
-
-  // decorative dots
   ctx.fillStyle='rgba(255,255,255,.35)';
   for(let i=0;i<60;i++){
     const x=Math.random()*W,y=Math.random()*H,r=Math.random()*4+1;
     ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
   }
-
-  // filter
-  ctx.filter=`${FILTERS[EDIT.filter].css} brightness(${EDIT.brightness}%) contrast(${EDIT.contrast}%) saturate(${EDIT.saturate}%)`;
-
-  // draw slots — use cached decoded images
+  ctx.filter=filterCss;
   return Promise.all(layout.map((slot,i)=>{
     if(!shots[i]) return Promise.resolve();
     return loadImg(shots[i]).then(img=>{
@@ -391,14 +438,12 @@ function drawFrame(canvas){
     });
   })).then(()=>{
     ctx.filter='none';
-    // brand label
     ctx.fillStyle='rgba(255,255,255,.85)';
     ctx.fillRect(40,H-80,W-80,50);
     ctx.fillStyle='#5b3a29';
     ctx.font='bold 22px Fredoka, sans-serif';
     ctx.textAlign='center';
     ctx.fillText('✿ RAIA PHOTOBOOTH ✿  '+new Date().toLocaleDateString(),W/2,H-48);
-
   });
 }
 
