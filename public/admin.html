@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Admin ✿ Raia Photobooth</title>
+<link rel="stylesheet" href="/style.css"/>
+<style>
+  .admin-wrap{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:14px;height:100vh;box-sizing:border-box}
+  .admin-side{background:rgba(255,255,255,.85);border-radius:18px;padding:14px;overflow-y:auto;box-shadow:var(--shadow-soft);display:flex;flex-direction:column;gap:10px}
+  .admin-side h3{color:var(--brown);font-size:15px;margin:8px 0 4px}
+  .admin-side input,.admin-side select,.admin-side button{width:100%;padding:8px 10px;border-radius:10px;border:2px solid #ffd9bf;background:#fff;font-family:inherit;font-size:13px}
+  .admin-side button{background:#ff8fb1;color:#fff;border-color:#ff8fb1;cursor:pointer;font-weight:600}
+  .admin-side button.ghost{background:#fff;color:var(--brown);border-color:#d4a373}
+  .admin-side button.danger{background:#ff6b6b;border-color:#ff6b6b}
+  .admin-stage{background:rgba(255,255,255,.6);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:8px;overflow:hidden;box-shadow:var(--shadow-soft)}
+  .canvas-host{flex:1;position:relative;overflow:auto;background:
+    repeating-conic-gradient(#eee 0% 25%, #fafafa 0% 50%) 0 0 / 24px 24px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+  .frame-canvas{position:relative;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.15)}
+  .frame-canvas img.frame-img{display:block;max-width:100%;max-height:70vh;pointer-events:none;user-select:none}
+  .slot-box{position:absolute;border:2px dashed #ff3b6b;background:rgba(255,59,107,.18);box-sizing:border-box;cursor:move;touch-action:none}
+  .slot-box .lbl{position:absolute;top:2px;left:4px;font-size:11px;color:#fff;background:rgba(0,0,0,.5);padding:1px 6px;border-radius:6px;pointer-events:none}
+  .slot-box .h{position:absolute;width:12px;height:12px;background:#ff3b6b;border:2px solid #fff;border-radius:3px;z-index:3}
+  .slot-box .h.br{right:-7px;bottom:-7px;cursor:se-resize}
+  .slot-box .h.rot{left:50%;top:-22px;transform:translateX(-50%);cursor:grab;border-radius:50%;background:#3b8aff}
+  .slot-box .btns{position:absolute;top:-26px;right:-2px;display:flex;gap:4px}
+  .slot-box .btns button{width:22px;height:22px;border-radius:50%;border:none;cursor:pointer;font-size:12px;font-weight:700;color:#fff}
+  .slot-box .del{background:#ff3b6b}
+  .slot-box .dup{background:#3b8aff}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .frames-list{display:flex;flex-wrap:wrap;gap:6px}
+  .frames-list .chip{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #ddd;border-radius:8px;padding:4px 6px;font-size:11px}
+  .frames-list .chip button{width:auto;padding:0 6px;background:#ff6b6b;border-color:#ff6b6b;font-size:10px}
+  .hint{font-size:11px;color:var(--text-soft);line-height:1.4}
+</style>
+</head>
+<body>
+<div class="admin-wrap">
+  <aside class="admin-side">
+    <div class="topbar">
+      <h3 style="margin:0">⚙️ Admin Panel</h3>
+      <button class="ghost" style="width:auto;padding:6px 10px" onclick="location.href='/welcome.html'">← Back</button>
+    </div>
+
+    <h3>1. Upload Frame PNG</h3>
+    <input type="file" id="frameFile" accept="image/png,image/*"/>
+    <select id="frameCat">
+      <option value="strip">Strip</option>
+      <option value="r4">4R</option>
+    </select>
+    <input type="text" id="frameName" placeholder="Nama frame (opsional)"/>
+
+    <h3>2. Slot Foto</h3>
+    <p class="hint">Klik & tarik di atas frame untuk membuat slot. Drag pojok kanan-bawah untuk resize. Drag bulatan biru untuk rotate.</p>
+    <button id="addSlot">+ Tambah slot manual</button>
+    <button id="clearSlots" class="danger">Hapus semua slot</button>
+
+    <h3>3. Simpan</h3>
+    <button id="saveBtn">💾 Simpan Frame</button>
+    <button id="resetBtn" class="ghost">Reset Form</button>
+
+    <h3>Frame Tersimpan</h3>
+    <div class="frames-list" id="framesList"></div>
+  </aside>
+
+  <section class="admin-stage">
+    <div class="topbar">
+      <strong id="stageTitle">Upload PNG dulu untuk mulai…</strong>
+      <span id="slotCount" style="font-size:12px;color:var(--text-soft)"></span>
+    </div>
+    <div class="canvas-host" id="canvasHost">
+      <div class="frame-canvas" id="frameCanvas" style="display:none">
+        <img class="frame-img" id="frameImg" alt=""/>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="/app.js"></script>
+<script>
+const STORE_KEY='raia_custom_frames';
+const state={src:'',w:0,h:0,slots:[],editId:null};
+const $=id=>document.getElementById(id);
+
+function uid(){return 'cf-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
+function loadAll(){try{return JSON.parse(localStorage.getItem(STORE_KEY)||'[]')}catch{return[]}}
+function saveAll(arr){localStorage.setItem(STORE_KEY,JSON.stringify(arr))}
+
+function renderFramesList(){
+  const arr=loadAll();
+  const el=$('framesList');el.innerHTML='';
+  if(!arr.length){el.innerHTML='<span class="hint">Belum ada frame custom.</span>';return;}
+  arr.forEach(f=>{
+    const c=document.createElement('div');c.className='chip';
+    c.innerHTML=`<span>[${f.category}] ${f.name}</span>`;
+    const e=document.createElement('button');e.textContent='edit';e.style.background='#3b8aff';e.style.borderColor='#3b8aff';
+    e.onclick=()=>loadFrameForEdit(f);
+    const d=document.createElement('button');d.textContent='×';
+    d.onclick=()=>{if(confirm('Hapus '+f.name+'?')){saveAll(loadAll().filter(x=>x.id!==f.id));renderFramesList();}};
+    c.appendChild(e);c.appendChild(d);el.appendChild(c);
+  });
+}
+
+function loadFrameForEdit(f){
+  state.editId=f.id;state.src=f.src;state.w=f.w;state.h=f.h;state.slots=JSON.parse(JSON.stringify(f.slots));
+  $('frameCat').value=f.category;$('frameName').value=f.name;
+  showFrame();
+}
+
+function showFrame(){
+  const fc=$('frameCanvas'),img=$('frameImg');
+  fc.style.display='inline-block';
+  img.src=state.src;
+  img.onload=()=>{
+    state.w=img.naturalWidth;state.h=img.naturalHeight;
+    fc.style.width=img.clientWidth+'px';fc.style.height=img.clientHeight+'px';
+    $('stageTitle').textContent=`Frame ${state.w}×${state.h}px`;
+    renderSlots();
+  };
+}
+
+window.addEventListener('resize',()=>{
+  const img=$('frameImg');if(!img.src) return;
+  const fc=$('frameCanvas');
+  fc.style.width=img.clientWidth+'px';fc.style.height=img.clientHeight+'px';
+  renderSlots();
+});
+
+$('frameFile').onchange=e=>{
+  const f=e.target.files[0];if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{state.src=r.result;state.slots=[];state.editId=null;showFrame();};
+  r.readAsDataURL(f);
+};
+
+function renderSlots(){
+  const fc=$('frameCanvas');
+  fc.querySelectorAll('.slot-box').forEach(n=>n.remove());
+  const dispW=fc.clientWidth,dispH=fc.clientHeight;
+  state.slots.forEach((s,i)=>{
+    const box=document.createElement('div');box.className='slot-box';
+    const px=s.x*dispW,py=s.y*dispH,pw=s.w*dispW,ph=s.h*dispH;
+    Object.assign(box.style,{left:px+'px',top:py+'px',width:pw+'px',height:ph+'px',transform:`rotate(${s.rot||0}deg)`});
+    box.innerHTML=`<span class="lbl">#${i+1}</span>
+      <div class="h br"></div><div class="h rot"></div>
+      <div class="btns"><button class="dup" title="Duplicate">+</button><button class="del" title="Remove">×</button></div>`;
+    fc.appendChild(box);
+    bindSlot(box,i);
+  });
+  $('slotCount').textContent=state.slots.length+' slot';
+}
+
+function bindSlot(box,i){
+  const fc=$('frameCanvas');
+  const dispW=()=>fc.clientWidth, dispH=()=>fc.clientHeight;
+  const slot=state.slots[i];
+
+  // drag move (by box body)
+  box.addEventListener('pointerdown',ev=>{
+    if(ev.target.closest('.h, .btns')) return;
+    ev.preventDefault();box.setPointerCapture(ev.pointerId);
+    const sx=ev.clientX,sy=ev.clientY,ox=slot.x,oy=slot.y;
+    const move=e=>{slot.x=ox+(e.clientX-sx)/dispW();slot.y=oy+(e.clientY-sy)/dispH();applyBox();};
+    const up=e=>{box.releasePointerCapture(ev.pointerId);box.removeEventListener('pointermove',move);box.removeEventListener('pointerup',up);};
+    box.addEventListener('pointermove',move);box.addEventListener('pointerup',up);
+  });
+  // resize br
+  box.querySelector('.br').addEventListener('pointerdown',ev=>{
+    ev.stopPropagation();ev.preventDefault();
+    const el=ev.target;el.setPointerCapture(ev.pointerId);
+    const sx=ev.clientX,sy=ev.clientY,ow=slot.w,oh=slot.h;
+    const move=e=>{slot.w=Math.max(.02,ow+(e.clientX-sx)/dispW());slot.h=Math.max(.02,oh+(e.clientY-sy)/dispH());applyBox();};
+    const up=()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);};
+    el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);
+  });
+  // rotate
+  box.querySelector('.rot').addEventListener('pointerdown',ev=>{
+    ev.stopPropagation();ev.preventDefault();
+    const el=ev.target;el.setPointerCapture(ev.pointerId);
+    const rect=box.getBoundingClientRect();
+    const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+    const startAng=Math.atan2(ev.clientY-cy,ev.clientX-cx)*180/Math.PI;
+    const orig=slot.rot||0;
+    const move=e=>{const a=Math.atan2(e.clientY-cy,e.clientX-cx)*180/Math.PI;slot.rot=orig+(a-startAng);applyBox();};
+    const up=()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);};
+    el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);
+  });
+  box.querySelector('.del').onclick=ev=>{ev.stopPropagation();state.slots.splice(i,1);renderSlots();};
+  box.querySelector('.dup').onclick=ev=>{ev.stopPropagation();const c=JSON.parse(JSON.stringify(slot));c.x+=.03;c.y+=.03;state.slots.push(c);renderSlots();};
+
+  function applyBox(){
+    const px=slot.x*dispW(),py=slot.y*dispH(),pw=slot.w*dispW(),ph=slot.h*dispH();
+    Object.assign(box.style,{left:px+'px',top:py+'px',width:pw+'px',height:ph+'px',transform:`rotate(${slot.rot||0}deg)`});
+  }
+}
+
+// click-and-drag on frame to create new slot
+let createMode=false;
+$('frameCanvas').addEventListener('pointerdown',ev=>{
+  if(ev.target.closest('.slot-box')) return;
+  const fc=$('frameCanvas');
+  const r=fc.getBoundingClientRect();
+  const startX=(ev.clientX-r.left)/r.width, startY=(ev.clientY-r.top)/r.height;
+  const slot={x:startX,y:startY,w:0,h:0,rot:0};
+  state.slots.push(slot);
+  const idx=state.slots.length-1;
+  renderSlots();
+  const box=fc.querySelectorAll('.slot-box')[idx];
+  box.setPointerCapture?.(ev.pointerId);
+  const move=e=>{
+    const cx=(e.clientX-r.left)/r.width, cy=(e.clientY-r.top)/r.height;
+    slot.x=Math.min(startX,cx);slot.y=Math.min(startY,cy);
+    slot.w=Math.abs(cx-startX);slot.h=Math.abs(cy-startY);
+    box.style.left=(slot.x*r.width)+'px';box.style.top=(slot.y*r.height)+'px';
+    box.style.width=(slot.w*r.width)+'px';box.style.height=(slot.h*r.height)+'px';
+  };
+  const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);
+    if(slot.w<.02||slot.h<.02){state.slots.splice(idx,1);}
+    renderSlots();
+  };
+  document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
+});
+
+$('addSlot').onclick=()=>{
+  if(!state.src){alert('Upload frame dulu');return;}
+  state.slots.push({x:.1,y:.1,w:.3,h:.3,rot:0});renderSlots();
+};
+$('clearSlots').onclick=()=>{if(confirm('Hapus semua slot?')){state.slots=[];renderSlots();}};
+$('resetBtn').onclick=()=>{state={src:'',w:0,h:0,slots:[],editId:null};$('frameCanvas').style.display='none';$('frameName').value='';$('stageTitle').textContent='Upload PNG dulu untuk mulai…';$('slotCount').textContent='';};
+
+$('saveBtn').onclick=()=>{
+  if(!state.src){alert('Upload frame dulu');return;}
+  if(!state.slots.length){alert('Tambahkan minimal 1 slot');return;}
+  const arr=loadAll();
+  const cat=$('frameCat').value;
+  // auto naming: strip1.png / 4r1.png if name empty
+  let name=$('frameName').value.trim();
+  if(!name){
+    const same=arr.filter(f=>f.category===cat);
+    name=(cat==='strip'?'strip':'4r')+(same.length+1)+'.png';
+  }
+  const data={
+    id:state.editId||uid(),
+    name,category:cat,src:state.src,w:state.w,h:state.h,
+    slots:state.slots.map(s=>({x:s.x,y:s.y,w:s.w,h:s.h,rot:s.rot||0}))
+  };
+  if(state.editId){
+    const i=arr.findIndex(f=>f.id===state.editId);
+    if(i>=0) arr[i]=data; else arr.push(data);
+  } else { arr.push(data); state.editId=data.id; }
+  saveAll(arr);
+  renderFramesList();
+  alert('Frame "'+name+'" tersimpan ✿');
+};
+
+renderFramesList();
+</script>
+</body>
+</html>
