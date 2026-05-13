@@ -285,8 +285,8 @@ body::before{
 .shots img{width:100%;border-radius:10px;box-shadow:var(--shadow-soft)}
 
 /* PAGE FADE */
-.page-fade{animation:fadeIn .5s ease}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.page-fade{}
+@keyframes fadeIn{from{opacity:1}to{opacity:1}}
 
 .toast{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
