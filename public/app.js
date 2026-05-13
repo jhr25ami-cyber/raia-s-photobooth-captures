@@ -285,9 +285,9 @@ async function initCamera(){
     renderSlots();
     RAIA.loader(false);
     document.getElementById('takeBtn').disabled=false;
-    // auto-advance when all slots filled
+    // Do NOT auto-advance — user must click Next
     if(ns.filter(Boolean).length>=slotsCount){
-      setTimeout(()=>RAIA.go('editor.html'), 500);
+      RAIA.toast('Semua slot terisi ✿ klik Next untuk lanjut');
     }
   };
 
