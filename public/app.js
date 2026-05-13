@@ -533,49 +533,35 @@ function initSave(){
     if(typeof GIF==='undefined'){RAIA.toast('Library GIF belum siap, coba lagi');return;}
     RAIA.loader('Membuat GIF... 0%', 0);
     try{
-      const baseCanvas=document.createElement('canvas');
-      await drawFrame(baseCanvas);
-      const scale=Math.min(1, 540/baseCanvas.width);
-      const w=Math.round(baseCanvas.width*scale), h=Math.round(baseCanvas.height*scale);
+      // Use the first raw photo's native aspect ratio (e.g. 16:9)
+      const first=await loadImg(shots[0]);
+      const maxW=640;
+      const w=Math.min(maxW, first.width);
+      const h=Math.round(w*first.height/first.width);
       const gif=new GIF({workers:2,quality:10,width:w,height:h,workerScript:'/vendor/gif.worker.js'});
-      const fc=document.createElement('canvas');fc.width=w;fc.height=h;
-      fc.getContext('2d').drawImage(baseCanvas,0,0,w,h);
-      gif.addFrame(fc,{delay:900,copy:true});
       for(let i=0;i<shots.length;i++){
         const img=await loadImg(shots[i]);
         const c=document.createElement('canvas');c.width=w;c.height=h;
         const cx=c.getContext('2d');
-        cx.drawImage(baseCanvas,0,0,w,h);
-        cx.fillStyle='rgba(91,58,41,.55)';cx.fillRect(0,0,w,h);
-        const pad=24, pw=w-pad*2, ph=h-pad*2;
-        const ar=img.width/img.height, sar=pw/ph;
-        let sx,sy,sw,sh;
-        if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
-        else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
-        cx.save();
-        const r=14;
-        cx.beginPath();
-        cx.moveTo(pad+r,pad);
-        cx.arcTo(pad+pw,pad,pad+pw,pad+ph,r);
-        cx.arcTo(pad+pw,pad+ph,pad,pad+ph,r);
-        cx.arcTo(pad,pad+ph,pad,pad,r);
-        cx.arcTo(pad,pad,pad+pw,pad,r);
-        cx.closePath();cx.clip();
-        cx.drawImage(img,sx,sy,sw,sh,pad,pad,pw,ph);
-        cx.restore();
-        gif.addFrame(c,{delay:600,copy:true});
+        cx.imageSmoothingEnabled=true;cx.imageSmoothingQuality='high';
+        cx.fillStyle='#000';cx.fillRect(0,0,w,h);
+        // contain — preserves raw aspect ratio
+        const ar=img.width/img.height, sar=w/h;
+        let dw,dh,dx,dy;
+        if(ar>sar){dw=w;dh=w/ar;dx=0;dy=(h-dh)/2;}
+        else{dh=h;dw=h*ar;dy=0;dx=(w-dw)/2;}
+        cx.drawImage(img,dx,dy,dw,dh);
+        gif.addFrame(c,{delay:700,copy:true});
       }
-      gif.addFrame(fc,{delay:900,copy:true});
       gif.on('progress',p=>RAIA.loader('Membuat GIF... '+Math.round(p*100)+'%', p));
       gif.on('finished',blob=>{
-        // ensure proper mime
         const gifBlob=blob.type==='image/gif'?blob:new Blob([blob],{type:'image/gif'});
         const url=URL.createObjectURL(gifBlob);
         const a=document.createElement('a');a.href=url;a.download=`raia-photobooth-${ts()}.gif`;
         document.body.appendChild(a);a.click();a.remove();
         setTimeout(()=>URL.revokeObjectURL(url),2000);
         RAIA.loader(false);
-        RAIA.toast('GIF kolase tersimpan ✿');
+        RAIA.toast('GIF tersimpan ✿');
       });
       gif.on('abort',()=>{RAIA.loader(false);RAIA.toast('GIF dibatalkan');});
       gif.render();
