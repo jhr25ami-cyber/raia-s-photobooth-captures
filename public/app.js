@@ -334,6 +334,7 @@ function drawFrame(canvas){
   const shots=RAIA.state.shots.filter(Boolean);
   const [c1,c2]=getFrameStyle();
   const ctx=canvas.getContext('2d');
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
 
   // dimensions
   let W,H,layout;
