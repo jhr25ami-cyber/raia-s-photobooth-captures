@@ -496,21 +496,29 @@ function initEditor(){
 
 function initSave(){
   const canvas=document.getElementById('finalCanvas');
-  RAIA.loader('Menyiapkan hasil akhir...');
-  // preload first, then render
-  Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
-    .then(()=>drawFrame(canvas))
-    .then(()=>{
-      const data=canvas.toDataURL('image/png');
-      document.getElementById('finalImg').src=data;
-      RAIA.state.final=data;
-      RAIA.loader(false);
-    }).catch(e=>{console.error(e);RAIA.loader(false);});
+  const finalImg=document.getElementById('finalImg');
   const shotsEl=document.getElementById('shotsList');
+
+  // Show thumbnails + cached final immediately for instant page paint
   RAIA.state.shots.filter(Boolean).forEach((src,i)=>{
     const img=document.createElement('img');img.src=src;img.alt='shot '+(i+1);
     shotsEl.appendChild(img);
   });
+  if(RAIA.state.final){
+    finalImg.src=RAIA.state.final;
+  } else {
+    // Fallback: render in background without blocking page paint
+    RAIA.loader('Menyiapkan hasil akhir...');
+    setTimeout(()=>{
+      Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
+        .then(()=>drawFrame(canvas))
+        .then(()=>new Promise(res=>canvas.toBlob(b=>{
+          const r=new FileReader();r.onload=()=>{RAIA.state.final=r.result;finalImg.src=r.result;res();};r.readAsDataURL(b);
+        },'image/png')))
+        .then(()=>RAIA.loader(false))
+        .catch(e=>{console.error(e);RAIA.loader(false);});
+    },0);
+  }
   const ts=()=>new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
 
   document.getElementById('saveBtn').onclick=()=>{
