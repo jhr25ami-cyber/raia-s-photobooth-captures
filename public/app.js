@@ -127,7 +127,8 @@ function getFrameName(){
 /* ========== CAMERA ========== */
 async function initCamera(){
   const type=RAIA.state.type;
-  const slotsCount = type==='strip'?4:4;
+  const customF=getCustomFrame(RAIA.state.frame);
+  const slotsCount = customF? customF.slots.length : 4;
   const stage=document.getElementById('frameStage');
   const stageWrap=document.getElementById('frameStageWrap');
   const [c1,c2]=getFrameStyle();
