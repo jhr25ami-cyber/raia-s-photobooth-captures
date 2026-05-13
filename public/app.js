@@ -399,11 +399,6 @@ function drawFrame(canvas){
     ctx.textAlign='center';
     ctx.fillText('✿ RAIA PHOTOBOOTH ✿  '+new Date().toLocaleDateString(),W/2,H-48);
 
-    // stickers
-    EDIT.stickers.forEach(s=>{
-      ctx.font=s.size+'px serif';ctx.textAlign='left';
-      ctx.fillText(s.emoji,s.x,s.y);
-    });
   });
 }
 
