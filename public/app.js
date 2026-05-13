@@ -443,12 +443,24 @@ function initEditor(){
     Object.assign(EDIT,{filter:s.f,brightness:s.b,contrast:s.c,saturate:s.s,stickers:s.st});
     syncControls();render();
   };
-  document.getElementById('nextBtn').onclick=async()=>{
+  document.getElementById('nextBtn').onclick=()=>{
+    // Show loader instantly, then defer heavy work to next frame so UI updates first
     RAIA.loader('Menjahit foto HD...');
-    await render();
-    RAIA.state.final=canvas.toDataURL('image/png');
-    RAIA.loader(false);
-    RAIA.go('save.html');
+    requestAnimationFrame(()=>setTimeout(async()=>{
+      try{
+        await render();
+        // toBlob is non-blocking compared to toDataURL
+        canvas.toBlob(blob=>{
+          const reader=new FileReader();
+          reader.onload=()=>{
+            RAIA.state.final=reader.result;
+            RAIA.loader(false);
+            RAIA.go('save.html');
+          };
+          reader.readAsDataURL(blob);
+        },'image/png');
+      }catch(e){console.error(e);RAIA.loader(false);}
+    },0));
   };
   document.getElementById('backBtn').onclick=()=>RAIA.go('camera.html');
 
@@ -462,14 +474,24 @@ function initEditor(){
     filterRow.querySelectorAll('.filter-btn').forEach(x=>x.classList.toggle('active',x.dataset.k===EDIT.filter));
   }
 
-  async function render(){await drawFrame(canvas);}
-  // Preload all shot images first so first paint is instant after this
-  RAIA.loader('Memuat foto HD...');
+  // rAF-debounced render so slider drags don't pile up and block the UI thread
+  let _renderPending=false;
+  async function render(){
+    if(_renderPending) return;
+    _renderPending=true;
+    await new Promise(r=>requestAnimationFrame(r));
+    _renderPending=false;
+    await drawFrame(canvas);
+  }
+  // Show editor UI immediately; preload + first render happen in background
   pushHistory();
-  Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
-    .then(()=>render())
-    .then(()=>RAIA.loader(false))
-    .catch(e=>{console.error(e);RAIA.loader(false);});
+  setTimeout(()=>{
+    RAIA.loader('Memuat foto HD...');
+    Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
+      .then(()=>drawFrame(canvas))
+      .then(()=>RAIA.loader(false))
+      .catch(e=>{console.error(e);RAIA.loader(false);});
+  },0);
 }
 
 function initSave(){
