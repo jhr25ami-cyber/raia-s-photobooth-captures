@@ -247,8 +247,12 @@ async function initCamera(){
         const cnv=document.createElement('canvas');
         cnv.width=bmp.width;cnv.height=bmp.height;
         const cx=cnv.getContext('2d');
+        cx.imageSmoothingEnabled=true;cx.imageSmoothingQuality='high';
         if(mirror){cx.translate(cnv.width,0);cx.scale(-1,1);}
+        // DSLR-like polish: subtle contrast/saturation boost
+        cx.filter='contrast(1.06) saturate(1.08) brightness(1.02)';
         cx.drawImage(bmp,0,0);
+        cx.filter='none';
         return cnv.toDataURL('image/jpeg',0.95);
       }catch(e){console.warn('ImageCapture failed, fallback',e);}
     }
@@ -257,8 +261,11 @@ async function initCamera(){
     cnv.width=Math.max(video.videoWidth,maxPhotoSize.width);
     cnv.height=Math.max(video.videoHeight,maxPhotoSize.height);
     const cx=cnv.getContext('2d');
+    cx.imageSmoothingEnabled=true;cx.imageSmoothingQuality='high';
     if(mirror){cx.translate(cnv.width,0);cx.scale(-1,1);}
+    cx.filter='contrast(1.06) saturate(1.08) brightness(1.02)';
     cx.drawImage(video,0,0,cnv.width,cnv.height);
+    cx.filter='none';
     return cnv.toDataURL('image/jpeg',0.95);
   }
 
