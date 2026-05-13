@@ -68,10 +68,29 @@ const FRAME_NAMES=[
   'Aurora','Pastel Dust','Cotton Candy','Fairy Mist','Princess','Baby Cloud'
 ];
 
+function loadCustomFrames(){try{return JSON.parse(localStorage.getItem('raia_custom_frames')||'[]')}catch{return[]}}
+function getCustomFrame(id){
+  if(!id||!id.startsWith('custom-')) return null;
+  const cid=id.slice(7);
+  return loadCustomFrames().find(f=>f.id===cid)||null;
+}
+
 function buildFrames(type){
   const grid=document.getElementById('frameGrid');
   if(!grid) return;
   grid.innerHTML='';
+  const customs=loadCustomFrames().filter(f=>f.category===type);
+  customs.forEach(f=>{
+    const card=document.createElement('div');
+    card.className='frame-card';
+    card.innerHTML=`
+      <div class="frame-thumb ${type==='strip'?'strip':''}" style="background:#fff url('${f.src}') center/contain no-repeat;border:2px dashed #ff8fb1;">
+        <span style="background:rgba(255,143,177,.85);padding:2px 8px;border-radius:6px;align-self:flex-start;color:#fff">CUSTOM</span>
+      </div>
+      <span class="name">${f.name}</span>`;
+    card.onclick=()=>{RAIA.state.frame='custom-'+f.id;RAIA.state.shots=[];RAIA.go('camera.html');};
+    grid.appendChild(card);
+  });
   for(let i=0;i<20;i++){
     const id='frame-'+(i+1);
     const [a,b]=FRAME_PALETTES[i];
@@ -93,11 +112,15 @@ function buildFrames(type){
 }
 
 function getFrameStyle(){
-  const idx=parseInt((RAIA.state.frame||'frame-1').split('-')[1])-1;
+  const f=RAIA.state.frame||'frame-1';
+  if(f.startsWith('custom-')) return ['#ffd9bf','#ffb6c8'];
+  const idx=parseInt(f.split('-')[1])-1;
   return FRAME_PALETTES[idx]||FRAME_PALETTES[0];
 }
 function getFrameName(){
-  const idx=parseInt((RAIA.state.frame||'frame-1').split('-')[1])-1;
+  const f=RAIA.state.frame||'frame-1';
+  if(f.startsWith('custom-')){const c=getCustomFrame(f);return c?c.name:'Custom Frame';}
+  const idx=parseInt(f.split('-')[1])-1;
   return FRAME_NAMES[idx]||'Raia Frame';
 }
 
