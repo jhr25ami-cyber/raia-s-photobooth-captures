@@ -11,9 +11,8 @@ const RAIA = {
     set final(v){ localStorage.setItem('raia.final', v) },
   },
   go(url){
-    document.body.style.transition='opacity .35s';
-    document.body.style.opacity='0';
-    setTimeout(()=>location.href=url, 320);
+    // instant navigation — no blocking transition
+    location.href=url;
   },
   toast(msg){
     let t=document.querySelector('.toast');
