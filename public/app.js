@@ -11,9 +11,8 @@ const RAIA = {
     set final(v){ localStorage.setItem('raia.final', v) },
   },
   go(url){
-    document.body.style.transition='opacity .35s';
-    document.body.style.opacity='0';
-    setTimeout(()=>location.href=url, 320);
+    // instant navigation — no blocking transition
+    location.href=url;
   },
   toast(msg){
     let t=document.querySelector('.toast');
@@ -286,9 +285,9 @@ async function initCamera(){
     renderSlots();
     RAIA.loader(false);
     document.getElementById('takeBtn').disabled=false;
-    // auto-advance when all slots filled
+    // Do NOT auto-advance — user must click Next
     if(ns.filter(Boolean).length>=slotsCount){
-      setTimeout(()=>RAIA.go('editor.html'), 500);
+      RAIA.toast('Semua slot terisi ✿ klik Next untuk lanjut');
     }
   };
 
@@ -444,12 +443,24 @@ function initEditor(){
     Object.assign(EDIT,{filter:s.f,brightness:s.b,contrast:s.c,saturate:s.s,stickers:s.st});
     syncControls();render();
   };
-  document.getElementById('nextBtn').onclick=async()=>{
+  document.getElementById('nextBtn').onclick=()=>{
+    // Show loader instantly, then defer heavy work to next frame so UI updates first
     RAIA.loader('Menjahit foto HD...');
-    await render();
-    RAIA.state.final=canvas.toDataURL('image/png');
-    RAIA.loader(false);
-    RAIA.go('save.html');
+    requestAnimationFrame(()=>setTimeout(async()=>{
+      try{
+        await render();
+        // toBlob is non-blocking compared to toDataURL
+        canvas.toBlob(blob=>{
+          const reader=new FileReader();
+          reader.onload=()=>{
+            RAIA.state.final=reader.result;
+            RAIA.loader(false);
+            RAIA.go('save.html');
+          };
+          reader.readAsDataURL(blob);
+        },'image/png');
+      }catch(e){console.error(e);RAIA.loader(false);}
+    },0));
   };
   document.getElementById('backBtn').onclick=()=>RAIA.go('camera.html');
 
@@ -463,33 +474,51 @@ function initEditor(){
     filterRow.querySelectorAll('.filter-btn').forEach(x=>x.classList.toggle('active',x.dataset.k===EDIT.filter));
   }
 
-  async function render(){await drawFrame(canvas);}
-  // Preload all shot images first so first paint is instant after this
-  RAIA.loader('Memuat foto HD...');
+  // rAF-debounced render so slider drags don't pile up and block the UI thread
+  let _renderPending=false;
+  async function render(){
+    if(_renderPending) return;
+    _renderPending=true;
+    await new Promise(r=>requestAnimationFrame(r));
+    _renderPending=false;
+    await drawFrame(canvas);
+  }
+  // Show editor UI immediately; preload + first render happen in background
   pushHistory();
-  Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
-    .then(()=>render())
-    .then(()=>RAIA.loader(false))
-    .catch(e=>{console.error(e);RAIA.loader(false);});
+  setTimeout(()=>{
+    RAIA.loader('Memuat foto HD...');
+    Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
+      .then(()=>drawFrame(canvas))
+      .then(()=>RAIA.loader(false))
+      .catch(e=>{console.error(e);RAIA.loader(false);});
+  },0);
 }
 
 function initSave(){
   const canvas=document.getElementById('finalCanvas');
-  RAIA.loader('Menyiapkan hasil akhir...');
-  // preload first, then render
-  Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
-    .then(()=>drawFrame(canvas))
-    .then(()=>{
-      const data=canvas.toDataURL('image/png');
-      document.getElementById('finalImg').src=data;
-      RAIA.state.final=data;
-      RAIA.loader(false);
-    }).catch(e=>{console.error(e);RAIA.loader(false);});
+  const finalImg=document.getElementById('finalImg');
   const shotsEl=document.getElementById('shotsList');
+
+  // Show thumbnails + cached final immediately for instant page paint
   RAIA.state.shots.filter(Boolean).forEach((src,i)=>{
     const img=document.createElement('img');img.src=src;img.alt='shot '+(i+1);
     shotsEl.appendChild(img);
   });
+  if(RAIA.state.final){
+    finalImg.src=RAIA.state.final;
+  } else {
+    // Fallback: render in background without blocking page paint
+    RAIA.loader('Menyiapkan hasil akhir...');
+    setTimeout(()=>{
+      Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
+        .then(()=>drawFrame(canvas))
+        .then(()=>new Promise(res=>canvas.toBlob(b=>{
+          const r=new FileReader();r.onload=()=>{RAIA.state.final=r.result;finalImg.src=r.result;res();};r.readAsDataURL(b);
+        },'image/png')))
+        .then(()=>RAIA.loader(false))
+        .catch(e=>{console.error(e);RAIA.loader(false);});
+    },0);
+  }
   const ts=()=>new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
 
   document.getElementById('saveBtn').onclick=()=>{
