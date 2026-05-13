@@ -424,14 +424,7 @@ function initEditor(){
     el.oninput=()=>{EDIT[k]=+el.value;document.getElementById(k+'Val').textContent=el.value+'%';render();};
     el.onchange=()=>pushHistory();
   });
-  document.querySelectorAll('.sticker-row button').forEach(b=>{
-    b.onclick=()=>{
-      pushHistory();
-      EDIT.stickers.push({emoji:b.textContent,x:80+Math.random()*(canvas.width-160),y:120+Math.random()*(canvas.height-240),size:60});
-      render();
-    };
-  });
-  document.getElementById('clearStickers').onclick=()=>{pushHistory();EDIT.stickers=[];render();};
+  // sticker feature removed for cleaner UI / better perf
   document.getElementById('undoBtn').onclick=()=>{
     if(EDIT.history.length<2) return;
     EDIT.redo.push(EDIT.history.pop());
