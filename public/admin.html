@@ -6,16 +6,24 @@
 <title>Admin ✿ Raia Photobooth</title>
 <link rel="stylesheet" href="/style.css"/>
 <style>
-  .admin-wrap{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:14px;height:100vh;box-sizing:border-box}
-  .admin-side{background:rgba(255,255,255,.85);border-radius:18px;padding:14px;overflow-y:auto;box-shadow:var(--shadow-soft);display:flex;flex-direction:column;gap:10px}
-  .admin-side h3{color:var(--brown);font-size:15px;margin:8px 0 4px}
+  .admin-wrap{display:flex;flex-direction:column;height:100vh;box-sizing:border-box;padding:10px;gap:8px}
+  .admin-tabs{display:flex;gap:6px;background:rgba(255,255,255,.7);border-radius:14px;padding:6px;box-shadow:var(--shadow-soft);flex-shrink:0}
+  .admin-tabs button{flex:1;padding:8px 12px;border:none;border-radius:10px;background:transparent;cursor:pointer;font-family:inherit;font-weight:600;color:var(--brown);font-size:14px}
+  .admin-tabs button.active{background:#ff8fb1;color:#fff}
+  .admin-tabs .spacer{flex:0 0 auto;display:flex;align-items:center}
+  .admin-tabs .spacer button{background:#fff;border:2px solid #d4a373}
+  .tab-pane{flex:1;display:none;min-height:0}
+  .tab-pane.active{display:flex;gap:12px}
+
+  /* EDITOR TAB */
+  .admin-side{width:300px;background:rgba(255,255,255,.85);border-radius:18px;padding:14px;overflow-y:auto;box-shadow:var(--shadow-soft);display:flex;flex-direction:column;gap:10px;flex-shrink:0}
+  .admin-side h3{color:var(--brown);font-size:14px;margin:6px 0 2px}
   .admin-side input,.admin-side select,.admin-side button{width:100%;padding:8px 10px;border-radius:10px;border:2px solid #ffd9bf;background:#fff;font-family:inherit;font-size:13px}
   .admin-side button{background:#ff8fb1;color:#fff;border-color:#ff8fb1;cursor:pointer;font-weight:600}
   .admin-side button.ghost{background:#fff;color:var(--brown);border-color:#d4a373}
   .admin-side button.danger{background:#ff6b6b;border-color:#ff6b6b}
-  .admin-stage{background:rgba(255,255,255,.6);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:8px;overflow:hidden;box-shadow:var(--shadow-soft)}
-  .canvas-host{flex:1;position:relative;overflow:auto;background:
-    repeating-conic-gradient(#eee 0% 25%, #fafafa 0% 50%) 0 0 / 24px 24px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+  .admin-stage{flex:1;background:rgba(255,255,255,.6);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:8px;overflow:hidden;box-shadow:var(--shadow-soft)}
+  .canvas-host{flex:1;position:relative;overflow:auto;background:repeating-conic-gradient(#eee 0% 25%, #fafafa 0% 50%) 0 0 / 24px 24px;border-radius:12px;display:flex;align-items:center;justify-content:center}
   .frame-canvas{position:relative;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.15)}
   .frame-canvas img.frame-img{display:block;max-width:100%;max-height:70vh;pointer-events:none;user-select:none}
   .slot-box{position:absolute;border:2px dashed #ff3b6b;background:rgba(255,59,107,.18);box-sizing:border-box;cursor:move;touch-action:none}
@@ -28,50 +36,89 @@
   .slot-box .del{background:#ff3b6b}
   .slot-box .dup{background:#3b8aff}
   .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px}
-  .frames-list{display:flex;flex-wrap:wrap;gap:6px}
-  .frames-list .chip{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid #ddd;border-radius:8px;padding:4px 6px;font-size:11px}
-  .frames-list .chip button{width:auto;padding:0 6px;background:#ff6b6b;border-color:#ff6b6b;font-size:10px}
   .hint{font-size:11px;color:var(--text-soft);line-height:1.4}
+  .ready-badge{background:#caf2c8;color:#1e6b1f;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700;text-align:center}
+
+  /* GALLERY TAB */
+  .gallery-wrap{flex:1;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+  .cat-tabs{display:flex;gap:6px}
+  .cat-tabs button{padding:6px 14px;border:none;border-radius:10px;background:#fff;cursor:pointer;font-family:inherit;font-weight:600;color:var(--brown);border:2px solid #d4a373;font-size:13px}
+  .cat-tabs button.active{background:#ff8fb1;color:#fff;border-color:#ff8fb1}
+  .gallery-grid{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding:8px;background:rgba(255,255,255,.5);border-radius:14px}
+  .gal-card{background:#fff;border-radius:12px;padding:8px;box-shadow:0 4px 12px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:6px}
+  .gal-preview{position:relative;width:100%;aspect-ratio:1;background:#fafafa;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .gal-preview img{max-width:100%;max-height:100%;object-fit:contain}
+  .gal-slot{position:absolute;border:2px solid #3b8aff;background:rgba(59,138,255,.15);box-sizing:border-box}
+  .gal-slot span{position:absolute;top:1px;left:2px;font-size:9px;color:#fff;background:rgba(0,0,0,.6);padding:0 4px;border-radius:4px}
+  .gal-meta{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+  .gal-meta strong{color:var(--brown)}
+  .gal-status{display:inline-flex;align-items:center;gap:3px;background:#caf2c8;color:#1e6b1f;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700}
+  .gal-status.off{background:#ffd1d1;color:#a33}
+  .gal-status .dot{width:6px;height:6px;border-radius:50%;background:#1e6b1f}
+  .gal-actions{display:flex;gap:4px}
+  .gal-actions button{flex:1;padding:5px;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;color:#fff}
+  .gal-edit{background:#3b8aff}
+  .gal-del{background:#ff6b6b}
+  .empty-msg{grid-column:1/-1;text-align:center;color:var(--text-soft);padding:40px;font-size:13px}
 </style>
 </head>
 <body>
 <div class="admin-wrap">
-  <aside class="admin-side">
-    <div class="topbar">
-      <h3 style="margin:0">⚙️ Admin Panel</h3>
-      <button class="ghost" style="width:auto;padding:6px 10px" onclick="location.href='/welcome.html'">← Back</button>
-    </div>
+  <div class="admin-tabs">
+    <button id="tabEditor" class="active">✏️ Editor Frame</button>
+    <button id="tabGallery">🖼️ Gallery Review</button>
+    <div class="spacer"><button onclick="location.href='/welcome.html'">← Back to App</button></div>
+  </div>
 
-    <h3>1. Upload Frame PNG</h3>
-    <input type="file" id="frameFile" accept="image/png,image/*"/>
-    <select id="frameCat">
-      <option value="strip">Strip</option>
-      <option value="r4">4R</option>
-    </select>
-    <input type="text" id="frameName" placeholder="Nama frame (opsional)"/>
+  <!-- EDITOR TAB -->
+  <section class="tab-pane active" id="paneEditor">
+    <aside class="admin-side">
+      <div id="readyBadge" class="ready-badge" style="display:none">✿ Ready to Upload Next Frame</div>
 
-    <h3>2. Slot Foto</h3>
-    <p class="hint">Klik & tarik di atas frame untuk membuat slot. Drag pojok kanan-bawah untuk resize. Drag bulatan biru untuk rotate.</p>
-    <button id="addSlot">+ Tambah slot manual</button>
-    <button id="clearSlots" class="danger">Hapus semua slot</button>
+      <h3>1. Upload Frame PNG</h3>
+      <input type="file" id="frameFile" accept="image/png,image/*"/>
 
-    <h3>3. Simpan</h3>
-    <button id="saveBtn">💾 Simpan Frame</button>
-    <button id="resetBtn" class="ghost">Reset Form</button>
+      <h3>2. Kategori</h3>
+      <select id="frameCat">
+        <option value="strip">Strip</option>
+        <option value="r4">4R Standard</option>
+      </select>
+      <input type="text" id="frameName" placeholder="Nama frame (auto jika kosong)"/>
 
-    <h3>Frame Tersimpan</h3>
-    <div class="frames-list" id="framesList"></div>
-  </aside>
+      <h3>3. Slot Foto</h3>
+      <p class="hint">Klik & tarik di atas frame untuk membuat slot. Drag pojok kanan-bawah untuk resize. Drag bulatan biru untuk rotate.</p>
+      <button id="addSlot">+ Tambah slot manual</button>
+      <button id="clearSlots" class="danger">Hapus semua slot</button>
 
-  <section class="admin-stage">
-    <div class="topbar">
-      <strong id="stageTitle">Upload PNG dulu untuk mulai…</strong>
-      <span id="slotCount" style="font-size:12px;color:var(--text-soft)"></span>
-    </div>
-    <div class="canvas-host" id="canvasHost">
-      <div class="frame-canvas" id="frameCanvas" style="display:none">
-        <img class="frame-img" id="frameImg" alt=""/>
+      <h3>4. Simpan</h3>
+      <button id="saveBtn">💾 Simpan & Lanjut Frame Berikut</button>
+      <button id="resetBtn" class="ghost">Reset Form</button>
+    </aside>
+
+    <section class="admin-stage">
+      <div class="topbar">
+        <strong id="stageTitle">Upload PNG dulu untuk mulai…</strong>
+        <span id="slotCount" style="font-size:12px;color:var(--text-soft)"></span>
       </div>
+      <div class="canvas-host" id="canvasHost">
+        <div class="frame-canvas" id="frameCanvas" style="display:none">
+          <img class="frame-img" id="frameImg" alt=""/>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- GALLERY REVIEW TAB -->
+  <section class="tab-pane" id="paneGallery">
+    <div class="gallery-wrap">
+      <div class="topbar">
+        <div class="cat-tabs">
+          <button id="gtStrip" class="active">📏 Strip</button>
+          <button id="gt4r">🖼️ 4R Standard</button>
+        </div>
+        <span id="galCount" style="font-size:12px;color:var(--text-soft)"></span>
+      </div>
+      <div class="gallery-grid" id="galleryGrid"></div>
     </div>
   </section>
 </div>
@@ -86,24 +133,75 @@ function uid(){return 'cf-'+Date.now().toString(36)+Math.random().toString(36).s
 function loadAll(){try{return JSON.parse(localStorage.getItem(STORE_KEY)||'[]')}catch{return[]}}
 function saveAll(arr){localStorage.setItem(STORE_KEY,JSON.stringify(arr))}
 
-function renderFramesList(){
-  const arr=loadAll();
-  const el=$('framesList');el.innerHTML='';
-  if(!arr.length){el.innerHTML='<span class="hint">Belum ada frame custom.</span>';return;}
+/* ===== TABS ===== */
+$('tabEditor').onclick=()=>switchTab('editor');
+$('tabGallery').onclick=()=>switchTab('gallery');
+function switchTab(t){
+  $('tabEditor').classList.toggle('active',t==='editor');
+  $('tabGallery').classList.toggle('active',t==='gallery');
+  $('paneEditor').classList.toggle('active',t==='editor');
+  $('paneGallery').classList.toggle('active',t==='gallery');
+  if(t==='gallery') renderGallery();
+}
+
+/* ===== GALLERY ===== */
+let galCat='strip';
+$('gtStrip').onclick=()=>{galCat='strip';$('gtStrip').classList.add('active');$('gt4r').classList.remove('active');renderGallery();};
+$('gt4r').onclick=()=>{galCat='r4';$('gt4r').classList.add('active');$('gtStrip').classList.remove('active');renderGallery();};
+
+function renderGallery(){
+  const arr=loadAll().filter(f=>f.category===galCat);
+  const grid=$('galleryGrid');grid.innerHTML='';
+  $('galCount').textContent=arr.length+' frame • Active & tersinkron ke photobooth';
+  if(!arr.length){grid.innerHTML='<div class="empty-msg">Belum ada frame untuk kategori ini.<br/>Buka tab "Editor Frame" untuk menambah.</div>';return;}
   arr.forEach(f=>{
-    const c=document.createElement('div');c.className='chip';
-    c.innerHTML=`<span>[${f.category}] ${f.name}</span>`;
-    const e=document.createElement('button');e.textContent='edit';e.style.background='#3b8aff';e.style.borderColor='#3b8aff';
-    e.onclick=()=>loadFrameForEdit(f);
-    const d=document.createElement('button');d.textContent='×';
-    d.onclick=()=>{if(confirm('Hapus '+f.name+'?')){saveAll(loadAll().filter(x=>x.id!==f.id));renderFramesList();}};
-    c.appendChild(e);c.appendChild(d);el.appendChild(c);
+    const card=document.createElement('div');card.className='gal-card';
+    card.innerHTML=`
+      <div class="gal-preview">
+        <img src="${f.src}" alt="${f.name}"/>
+      </div>
+      <div class="gal-meta">
+        <strong title="${f.name}">${f.name.length>18?f.name.slice(0,16)+'…':f.name}</strong>
+        <span class="gal-status"><span class="dot"></span>Active</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-soft)">${f.w}×${f.h}px • ${f.slots.length} slot</div>
+      <div class="gal-actions">
+        <button class="gal-edit">✏️ Edit Koordinat</button>
+        <button class="gal-del">🗑️</button>
+      </div>`;
+    // overlay slot rectangles after image loads
+    const img=card.querySelector('img');
+    img.onload=()=>{
+      const prev=card.querySelector('.gal-preview');
+      const r=img.getBoundingClientRect(), pr=prev.getBoundingClientRect();
+      const offX=(r.left-pr.left), offY=(r.top-pr.top);
+      f.slots.forEach((s,i)=>{
+        const b=document.createElement('div');b.className='gal-slot';
+        b.style.left=(offX+s.x*r.width)+'px';
+        b.style.top=(offY+s.y*r.height)+'px';
+        b.style.width=(s.w*r.width)+'px';
+        b.style.height=(s.h*r.height)+'px';
+        b.style.transform=`rotate(${s.rot||0}deg)`;
+        b.innerHTML=`<span>#${i+1}</span>`;
+        prev.appendChild(b);
+      });
+    };
+    card.querySelector('.gal-edit').onclick=()=>{loadFrameForEdit(f);switchTab('editor');};
+    card.querySelector('.gal-del').onclick=()=>{
+      if(confirm('Hapus frame "'+f.name+'"?')){
+        saveAll(loadAll().filter(x=>x.id!==f.id));
+        renderGallery();
+      }
+    };
+    grid.appendChild(card);
   });
 }
 
+/* ===== EDITOR ===== */
 function loadFrameForEdit(f){
   state.editId=f.id;state.src=f.src;state.w=f.w;state.h=f.h;state.slots=JSON.parse(JSON.stringify(f.slots));
   $('frameCat').value=f.category;$('frameName').value=f.name;
+  $('readyBadge').style.display='none';
   showFrame();
 }
 
@@ -129,7 +227,7 @@ window.addEventListener('resize',()=>{
 $('frameFile').onchange=e=>{
   const f=e.target.files[0];if(!f) return;
   const r=new FileReader();
-  r.onload=()=>{state.src=r.result;state.slots=[];state.editId=null;showFrame();};
+  r.onload=()=>{state.src=r.result;state.slots=[];state.editId=null;$('readyBadge').style.display='none';showFrame();};
   r.readAsDataURL(f);
 };
 
@@ -155,7 +253,6 @@ function bindSlot(box,i){
   const dispW=()=>fc.clientWidth, dispH=()=>fc.clientHeight;
   const slot=state.slots[i];
 
-  // drag move (by box body)
   box.addEventListener('pointerdown',ev=>{
     if(ev.target.closest('.h, .btns')) return;
     ev.preventDefault();box.setPointerCapture(ev.pointerId);
@@ -164,7 +261,6 @@ function bindSlot(box,i){
     const up=e=>{box.releasePointerCapture(ev.pointerId);box.removeEventListener('pointermove',move);box.removeEventListener('pointerup',up);};
     box.addEventListener('pointermove',move);box.addEventListener('pointerup',up);
   });
-  // resize br
   box.querySelector('.br').addEventListener('pointerdown',ev=>{
     ev.stopPropagation();ev.preventDefault();
     const el=ev.target;el.setPointerCapture(ev.pointerId);
@@ -173,7 +269,6 @@ function bindSlot(box,i){
     const up=()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);};
     el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);
   });
-  // rotate
   box.querySelector('.rot').addEventListener('pointerdown',ev=>{
     ev.stopPropagation();ev.preventDefault();
     const el=ev.target;el.setPointerCapture(ev.pointerId);
@@ -194,8 +289,6 @@ function bindSlot(box,i){
   }
 }
 
-// click-and-drag on frame to create new slot
-let createMode=false;
 $('frameCanvas').addEventListener('pointerdown',ev=>{
   if(ev.target.closest('.slot-box')) return;
   const fc=$('frameCanvas');
@@ -226,14 +319,22 @@ $('addSlot').onclick=()=>{
   state.slots.push({x:.1,y:.1,w:.3,h:.3,rot:0});renderSlots();
 };
 $('clearSlots').onclick=()=>{if(confirm('Hapus semua slot?')){state.slots=[];renderSlots();}};
-$('resetBtn').onclick=()=>{state={src:'',w:0,h:0,slots:[],editId:null};$('frameCanvas').style.display='none';$('frameName').value='';$('stageTitle').textContent='Upload PNG dulu untuk mulai…';$('slotCount').textContent='';};
+
+function resetForm(){
+  state.src='';state.w=0;state.h=0;state.slots=[];state.editId=null;
+  $('frameCanvas').style.display='none';
+  $('frameName').value='';
+  $('frameFile').value='';
+  $('stageTitle').textContent='Upload PNG dulu untuk mulai…';
+  $('slotCount').textContent='';
+}
+$('resetBtn').onclick=()=>{resetForm();$('readyBadge').style.display='none';};
 
 $('saveBtn').onclick=()=>{
   if(!state.src){alert('Upload frame dulu');return;}
   if(!state.slots.length){alert('Tambahkan minimal 1 slot');return;}
   const arr=loadAll();
   const cat=$('frameCat').value;
-  // auto naming: strip1.png / 4r1.png if name empty
   let name=$('frameName').value.trim();
   if(!name){
     const same=arr.filter(f=>f.category===cat);
@@ -247,13 +348,13 @@ $('saveBtn').onclick=()=>{
   if(state.editId){
     const i=arr.findIndex(f=>f.id===state.editId);
     if(i>=0) arr[i]=data; else arr.push(data);
-  } else { arr.push(data); state.editId=data.id; }
+  } else { arr.push(data); }
   saveAll(arr);
-  renderFramesList();
-  alert('Frame "'+name+'" tersimpan ✿');
+  // Continuous workflow: auto-reset to "Ready to Upload Next"
+  resetForm();
+  $('readyBadge').style.display='block';
+  $('readyBadge').textContent=`✓ "${name}" tersimpan & sinkron. Ready upload next frame ✿`;
 };
-
-renderFramesList();
 </script>
 </body>
 </html>
