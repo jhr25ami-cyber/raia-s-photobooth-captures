@@ -132,36 +132,81 @@ async function initCamera(){
   const stage=document.getElementById('frameStage');
   const stageWrap=document.getElementById('frameStageWrap');
   const [c1,c2]=getFrameStyle();
-  stageWrap.style.background=`linear-gradient(160deg,${c1},${c2})`;
-  stageWrap.style.padding='14px';
-  stageWrap.style.borderRadius='18px';
-  stage.className='frame-stage '+(type==='strip'?'strip':'r4');
 
   let mirror=true;
   const video=document.getElementById('video');
   const camPanel=document.getElementById('camPanel');
 
-  // build slots
+  // build slots — different layout for custom vs default
   stage.innerHTML='';
-  for(let i=0;i<slotsCount;i++){
-    const s=document.createElement('div');
-    s.className='slot';
-    s.dataset.idx=i;
-    s.innerHTML='<button class="x" title="Remove">×</button>';
-    s.querySelector('.x').onclick=(e)=>{
-      e.stopPropagation();
-      const shots=RAIA.state.shots;
-      shots[i]=null;
-      RAIA.state.shots=shots;
+  if(customF){
+    // CUSTOM FRAME: overlay PNG, absolute-positioned slots from saved %
+    stageWrap.style.background='transparent';
+    stageWrap.style.padding='8px';
+    stageWrap.style.borderRadius='18px';
+    // load frame to get aspect ratio
+    const fimg=new Image();
+    fimg.onload=()=>{
+      const ar=fimg.naturalWidth/fimg.naturalHeight;
+      stage.className='frame-stage';
+      stage.style.position='relative';
+      stage.style.aspectRatio=ar;
+      stage.style.width='auto';
+      stage.style.height='100%';
+      stage.style.maxHeight='100%';
+      stage.style.maxWidth='100%';
+      stage.style.display='block';
+      stage.style.background='#fff';
+      stage.style.padding='0';
+      // slot divs
+      customF.slots.forEach((sd,i)=>{
+        const s=document.createElement('div');
+        s.className='slot';
+        s.dataset.idx=i;
+        s.style.position='absolute';
+        s.style.left=(sd.x*100)+'%';
+        s.style.top=(sd.y*100)+'%';
+        s.style.width=(sd.w*100)+'%';
+        s.style.height=(sd.h*100)+'%';
+        s.style.transform=`rotate(${sd.rot||0}deg)`;
+        s.style.transformOrigin='center center';
+        s.style.overflow='hidden';
+        s.innerHTML='<button class="x" title="Remove" style="z-index:5">×</button>';
+        s.querySelector('.x').onclick=(e)=>{
+          e.stopPropagation();
+          const shots=RAIA.state.shots;shots[i]=null;RAIA.state.shots=shots;renderSlots();
+        };
+        stage.appendChild(s);
+      });
+      // overlay PNG on top
+      const ov=document.createElement('img');
+      ov.src=customF.src;
+      ov.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3';
+      stage.appendChild(ov);
       renderSlots();
     };
-    stage.appendChild(s);
+    fimg.src=customF.src;
+  } else {
+    stageWrap.style.background=`linear-gradient(160deg,${c1},${c2})`;
+    stageWrap.style.padding='14px';
+    stageWrap.style.borderRadius='18px';
+    stage.className='frame-stage '+(type==='strip'?'strip':'r4');
+    for(let i=0;i<slotsCount;i++){
+      const s=document.createElement('div');
+      s.className='slot';
+      s.dataset.idx=i;
+      s.innerHTML='<button class="x" title="Remove">×</button>';
+      s.querySelector('.x').onclick=(e)=>{
+        e.stopPropagation();
+        const shots=RAIA.state.shots;shots[i]=null;RAIA.state.shots=shots;renderSlots();
+      };
+      stage.appendChild(s);
+    }
+    const label=document.createElement('div');
+    label.style.cssText='text-align:center;font-size:10px;color:#fff;background:rgba(0,0,0,.15);border-radius:6px;padding:4px;margin-top:4px;letter-spacing:2px;font-weight:700';
+    label.textContent='RAIA PHOTOBOOTH ✿';
+    stage.appendChild(label);
   }
-  // brand label below
-  const label=document.createElement('div');
-  label.style.cssText='text-align:center;font-size:10px;color:#fff;background:rgba(0,0,0,.15);border-radius:6px;padding:4px;margin-top:4px;letter-spacing:2px;font-weight:700';
-  label.textContent='RAIA PHOTOBOOTH ✿';
-  stage.appendChild(label);
 
   // restore existing shots
   function renderSlots(){
@@ -170,11 +215,12 @@ async function initCamera(){
     let activeIdx=-1;
     slots.forEach((sl,i)=>{
       sl.classList.remove('live','filled','no-mirror');
-      const inner=sl.querySelector('img,video');
+      const inner=sl.querySelector('img:not(.overlay),video');
       if(inner) inner.remove();
       if(shots[i]){
         const img=document.createElement('img');
         img.src=shots[i];
+        img.style.cssText='width:100%;height:100%;object-fit:cover';
         sl.appendChild(img);
         sl.classList.add('filled');
       } else if(activeIdx===-1){
@@ -186,6 +232,7 @@ async function initCamera(){
       const v=document.createElement('video');
       v.autoplay=true;v.playsInline=true;v.muted=true;
       v.srcObject=video.srcObject;
+      v.style.cssText='width:100%;height:100%;object-fit:cover';
       sl.appendChild(v);
       sl.classList.add('live');
       if(!mirror) sl.classList.add('no-mirror');
@@ -353,7 +400,9 @@ function pushHistory(){
   EDIT.redo=[];
 }
 
-function drawFrame(canvas){
+function drawFrame(canvas, opts){
+  opts=opts||{};
+  const maxW=opts.maxW||Infinity;
   const type=RAIA.state.type;
   const shots=RAIA.state.shots.filter(Boolean);
   const ctx=canvas.getContext('2d');
@@ -363,32 +412,32 @@ function drawFrame(canvas){
   // ===== CUSTOM FRAME PATH =====
   const customF=getCustomFrame(RAIA.state.frame);
   if(customF){
-    return loadImg(customF.src).then(frameImg=>{
-      const W=frameImg.naturalWidth, H=frameImg.naturalHeight;
+    return loadImg(customF.src).then(async frameImg=>{
+      let W=frameImg.naturalWidth, H=frameImg.naturalHeight;
+      const scale=Math.min(1, maxW/W);
+      W=Math.round(W*scale); H=Math.round(H*scale);
       canvas.width=W;canvas.height=H;
       ctx.clearRect(0,0,W,H);
-      // photo layer (with filter)
       ctx.filter=filterCss;
-      const tasks=customF.slots.map((s,i)=>{
-        if(!shots[i]) return Promise.resolve();
-        return loadImg(shots[i]).then(img=>{
-          const dw=s.w*W, dh=s.h*H, dx=s.x*W, dy=s.y*H;
-          const ar=img.width/img.height, sar=dw/dh;
-          let sx,sy,sw,sh;
-          if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
-          else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
-          ctx.save();
-          ctx.translate(dx+dw/2,dy+dh/2);
-          ctx.rotate(((s.rot||0)*Math.PI)/180);
-          ctx.drawImage(img,sx,sy,sw,sh,-dw/2,-dh/2,dw,dh);
-          ctx.restore();
-        });
-      });
-      return Promise.all(tasks).then(()=>{
-        ctx.filter='none';
-        // overlay PNG on top
-        ctx.drawImage(frameImg,0,0,W,H);
-      });
+      // Draw photos sequentially with yields to keep UI responsive
+      for(let i=0;i<customF.slots.length;i++){
+        const s=customF.slots[i];
+        if(!shots[i]) continue;
+        const img=await loadImg(shots[i]);
+        const dw=s.w*W, dh=s.h*H, dx=s.x*W, dy=s.y*H;
+        const ar=img.width/img.height, sar=dw/dh;
+        let sx,sy,sw,sh;
+        if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
+        else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
+        ctx.save();
+        ctx.translate(dx+dw/2,dy+dh/2);
+        ctx.rotate(((s.rot||0)*Math.PI)/180);
+        ctx.drawImage(img,sx,sy,sw,sh,-dw/2,-dh/2,dw,dh);
+        ctx.restore();
+        await new Promise(r=>setTimeout(r,0));
+      }
+      ctx.filter='none';
+      ctx.drawImage(frameImg,0,0,W,H);
     });
   }
 
@@ -484,24 +533,12 @@ function initEditor(){
     Object.assign(EDIT,{filter:s.f,brightness:s.b,contrast:s.c,saturate:s.s,stickers:s.st});
     syncControls();render();
   };
+  // INSTANT NAV: editor doesn't render HD; save page does it once
   document.getElementById('nextBtn').onclick=()=>{
-    // Show loader instantly, then defer heavy work to next frame so UI updates first
-    RAIA.loader('Menjahit foto HD...');
-    requestAnimationFrame(()=>setTimeout(async()=>{
-      try{
-        await render();
-        // toBlob is non-blocking compared to toDataURL
-        canvas.toBlob(blob=>{
-          const reader=new FileReader();
-          reader.onload=()=>{
-            RAIA.state.final=reader.result;
-            RAIA.loader(false);
-            RAIA.go('save.html');
-          };
-          reader.readAsDataURL(blob);
-        },'image/png');
-      }catch(e){console.error(e);RAIA.loader(false);}
-    },0));
+    // persist edit state so save page renders with same look
+    try{localStorage.setItem('raia.edit',JSON.stringify({f:EDIT.filter,b:EDIT.brightness,c:EDIT.contrast,s:EDIT.saturate}));}catch{}
+    RAIA.state.final=''; // invalidate cache → save will render HD once
+    RAIA.go('save.html');
   };
   document.getElementById('backBtn').onclick=()=>RAIA.go('camera.html');
 
@@ -515,21 +552,21 @@ function initEditor(){
     filterRow.querySelectorAll('.filter-btn').forEach(x=>x.classList.toggle('active',x.dataset.k===EDIT.filter));
   }
 
-  // rAF-debounced render so slider drags don't pile up and block the UI thread
+  // rAF-debounced LIGHT render (capped width) — keeps editor smooth
   let _renderPending=false;
   async function render(){
     if(_renderPending) return;
     _renderPending=true;
     await new Promise(r=>requestAnimationFrame(r));
     _renderPending=false;
-    await drawFrame(canvas);
+    await drawFrame(canvas,{maxW:900});
   }
-  // Show editor UI immediately; preload + first render happen in background
+  // Show editor UI immediately; preload + first light render happen in background
   pushHistory();
   setTimeout(()=>{
-    RAIA.loader('Memuat foto HD...');
+    RAIA.loader('Memuat preview...');
     Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
-      .then(()=>drawFrame(canvas))
+      .then(()=>drawFrame(canvas,{maxW:900}))
       .then(()=>RAIA.loader(false))
       .catch(e=>{console.error(e);RAIA.loader(false);});
   },0);
@@ -545,26 +582,33 @@ function initSave(){
     const img=document.createElement('img');img.src=src;img.alt='shot '+(i+1);
     shotsEl.appendChild(img);
   });
+  // Restore editor state so HD render reflects user's adjustments
+  try{
+    const e=JSON.parse(localStorage.getItem('raia.edit')||'null');
+    if(e){EDIT.filter=e.f;EDIT.brightness=e.b;EDIT.contrast=e.c;EDIT.saturate=e.s;}
+  }catch{}
+
   if(RAIA.state.final){
     finalImg.src=RAIA.state.final;
   } else {
-    // Fallback: render in background without blocking page paint
-    RAIA.loader('Menyiapkan hasil akhir...');
+    // HD stitch happens ONCE here, after page UI has painted
+    RAIA.loader('Menjahit foto HD...');
     setTimeout(()=>{
       Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
-        .then(()=>drawFrame(canvas))
+        .then(()=>drawFrame(canvas,{maxW:1800}))
         .then(()=>new Promise(res=>canvas.toBlob(b=>{
           const r=new FileReader();r.onload=()=>{RAIA.state.final=r.result;finalImg.src=r.result;res();};r.readAsDataURL(b);
-        },'image/png')))
+        },'image/jpeg',0.95)))
         .then(()=>RAIA.loader(false))
-        .catch(e=>{console.error(e);RAIA.loader(false);});
-    },0);
+        .catch(e=>{console.error(e);RAIA.loader(false);RAIA.toast('Gagal render: '+e.message);});
+    },50);
   }
+
   const ts=()=>new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
 
   document.getElementById('saveBtn').onclick=()=>{
     const a=document.createElement('a');
-    a.href=RAIA.state.final;a.download=`raia-photobooth-${ts()}.png`;a.click();
+    a.href=RAIA.state.final;a.download=`raia-photobooth-${ts()}.jpg`;a.click();
     RAIA.state.shots.filter(Boolean).forEach((src,i)=>{
       const a=document.createElement('a');a.href=src;a.download=`raia-shot-${i+1}-${ts()}.jpg`;
       setTimeout(()=>a.click(),300*(i+1));
