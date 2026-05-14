@@ -533,24 +533,12 @@ function initEditor(){
     Object.assign(EDIT,{filter:s.f,brightness:s.b,contrast:s.c,saturate:s.s,stickers:s.st});
     syncControls();render();
   };
+  // INSTANT NAV: editor doesn't render HD; save page does it once
   document.getElementById('nextBtn').onclick=()=>{
-    // Show loader instantly, then defer heavy work to next frame so UI updates first
-    RAIA.loader('Menjahit foto HD...');
-    requestAnimationFrame(()=>setTimeout(async()=>{
-      try{
-        await render();
-        // toBlob is non-blocking compared to toDataURL
-        canvas.toBlob(blob=>{
-          const reader=new FileReader();
-          reader.onload=()=>{
-            RAIA.state.final=reader.result;
-            RAIA.loader(false);
-            RAIA.go('save.html');
-          };
-          reader.readAsDataURL(blob);
-        },'image/png');
-      }catch(e){console.error(e);RAIA.loader(false);}
-    },0));
+    // persist edit state so save page renders with same look
+    try{localStorage.setItem('raia.edit',JSON.stringify({f:EDIT.filter,b:EDIT.brightness,c:EDIT.contrast,s:EDIT.saturate}));}catch{}
+    RAIA.state.final=''; // invalidate cache → save will render HD once
+    RAIA.go('save.html');
   };
   document.getElementById('backBtn').onclick=()=>RAIA.go('camera.html');
 
@@ -564,21 +552,21 @@ function initEditor(){
     filterRow.querySelectorAll('.filter-btn').forEach(x=>x.classList.toggle('active',x.dataset.k===EDIT.filter));
   }
 
-  // rAF-debounced render so slider drags don't pile up and block the UI thread
+  // rAF-debounced LIGHT render (capped width) — keeps editor smooth
   let _renderPending=false;
   async function render(){
     if(_renderPending) return;
     _renderPending=true;
     await new Promise(r=>requestAnimationFrame(r));
     _renderPending=false;
-    await drawFrame(canvas);
+    await drawFrame(canvas,{maxW:900});
   }
-  // Show editor UI immediately; preload + first render happen in background
+  // Show editor UI immediately; preload + first light render happen in background
   pushHistory();
   setTimeout(()=>{
-    RAIA.loader('Memuat foto HD...');
+    RAIA.loader('Memuat preview...');
     Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
-      .then(()=>drawFrame(canvas))
+      .then(()=>drawFrame(canvas,{maxW:900}))
       .then(()=>RAIA.loader(false))
       .catch(e=>{console.error(e);RAIA.loader(false);});
   },0);
