@@ -608,7 +608,7 @@ function initSave(){
 
   document.getElementById('saveBtn').onclick=()=>{
     const a=document.createElement('a');
-    a.href=RAIA.state.final;a.download=`raia-photobooth-${ts()}.png`;a.click();
+    a.href=RAIA.state.final;a.download=`raia-photobooth-${ts()}.jpg`;a.click();
     RAIA.state.shots.filter(Boolean).forEach((src,i)=>{
       const a=document.createElement('a');a.href=src;a.download=`raia-shot-${i+1}-${ts()}.jpg`;
       setTimeout(()=>a.click(),300*(i+1));
