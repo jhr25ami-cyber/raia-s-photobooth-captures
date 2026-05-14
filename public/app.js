@@ -582,21 +582,28 @@ function initSave(){
     const img=document.createElement('img');img.src=src;img.alt='shot '+(i+1);
     shotsEl.appendChild(img);
   });
+  // Restore editor state so HD render reflects user's adjustments
+  try{
+    const e=JSON.parse(localStorage.getItem('raia.edit')||'null');
+    if(e){EDIT.filter=e.f;EDIT.brightness=e.b;EDIT.contrast=e.c;EDIT.saturate=e.s;}
+  }catch{}
+
   if(RAIA.state.final){
     finalImg.src=RAIA.state.final;
   } else {
-    // Fallback: render in background without blocking page paint
-    RAIA.loader('Menyiapkan hasil akhir...');
+    // HD stitch happens ONCE here, after page UI has painted
+    RAIA.loader('Menjahit foto HD...');
     setTimeout(()=>{
       Promise.all(RAIA.state.shots.filter(Boolean).map(s=>loadImg(s)))
-        .then(()=>drawFrame(canvas))
+        .then(()=>drawFrame(canvas,{maxW:1800}))
         .then(()=>new Promise(res=>canvas.toBlob(b=>{
           const r=new FileReader();r.onload=()=>{RAIA.state.final=r.result;finalImg.src=r.result;res();};r.readAsDataURL(b);
-        },'image/png')))
+        },'image/jpeg',0.95)))
         .then(()=>RAIA.loader(false))
-        .catch(e=>{console.error(e);RAIA.loader(false);});
-    },0);
+        .catch(e=>{console.error(e);RAIA.loader(false);RAIA.toast('Gagal render: '+e.message);});
+    },50);
   }
+
   const ts=()=>new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
 
   document.getElementById('saveBtn').onclick=()=>{
