@@ -132,36 +132,81 @@ async function initCamera(){
   const stage=document.getElementById('frameStage');
   const stageWrap=document.getElementById('frameStageWrap');
   const [c1,c2]=getFrameStyle();
-  stageWrap.style.background=`linear-gradient(160deg,${c1},${c2})`;
-  stageWrap.style.padding='14px';
-  stageWrap.style.borderRadius='18px';
-  stage.className='frame-stage '+(type==='strip'?'strip':'r4');
 
   let mirror=true;
   const video=document.getElementById('video');
   const camPanel=document.getElementById('camPanel');
 
-  // build slots
+  // build slots — different layout for custom vs default
   stage.innerHTML='';
-  for(let i=0;i<slotsCount;i++){
-    const s=document.createElement('div');
-    s.className='slot';
-    s.dataset.idx=i;
-    s.innerHTML='<button class="x" title="Remove">×</button>';
-    s.querySelector('.x').onclick=(e)=>{
-      e.stopPropagation();
-      const shots=RAIA.state.shots;
-      shots[i]=null;
-      RAIA.state.shots=shots;
+  if(customF){
+    // CUSTOM FRAME: overlay PNG, absolute-positioned slots from saved %
+    stageWrap.style.background='transparent';
+    stageWrap.style.padding='8px';
+    stageWrap.style.borderRadius='18px';
+    // load frame to get aspect ratio
+    const fimg=new Image();
+    fimg.onload=()=>{
+      const ar=fimg.naturalWidth/fimg.naturalHeight;
+      stage.className='frame-stage';
+      stage.style.position='relative';
+      stage.style.aspectRatio=ar;
+      stage.style.width='auto';
+      stage.style.height='100%';
+      stage.style.maxHeight='100%';
+      stage.style.maxWidth='100%';
+      stage.style.display='block';
+      stage.style.background='#fff';
+      stage.style.padding='0';
+      // slot divs
+      customF.slots.forEach((sd,i)=>{
+        const s=document.createElement('div');
+        s.className='slot';
+        s.dataset.idx=i;
+        s.style.position='absolute';
+        s.style.left=(sd.x*100)+'%';
+        s.style.top=(sd.y*100)+'%';
+        s.style.width=(sd.w*100)+'%';
+        s.style.height=(sd.h*100)+'%';
+        s.style.transform=`rotate(${sd.rot||0}deg)`;
+        s.style.transformOrigin='center center';
+        s.style.overflow='hidden';
+        s.innerHTML='<button class="x" title="Remove" style="z-index:5">×</button>';
+        s.querySelector('.x').onclick=(e)=>{
+          e.stopPropagation();
+          const shots=RAIA.state.shots;shots[i]=null;RAIA.state.shots=shots;renderSlots();
+        };
+        stage.appendChild(s);
+      });
+      // overlay PNG on top
+      const ov=document.createElement('img');
+      ov.src=customF.src;
+      ov.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3';
+      stage.appendChild(ov);
       renderSlots();
     };
-    stage.appendChild(s);
+    fimg.src=customF.src;
+  } else {
+    stageWrap.style.background=`linear-gradient(160deg,${c1},${c2})`;
+    stageWrap.style.padding='14px';
+    stageWrap.style.borderRadius='18px';
+    stage.className='frame-stage '+(type==='strip'?'strip':'r4');
+    for(let i=0;i<slotsCount;i++){
+      const s=document.createElement('div');
+      s.className='slot';
+      s.dataset.idx=i;
+      s.innerHTML='<button class="x" title="Remove">×</button>';
+      s.querySelector('.x').onclick=(e)=>{
+        e.stopPropagation();
+        const shots=RAIA.state.shots;shots[i]=null;RAIA.state.shots=shots;renderSlots();
+      };
+      stage.appendChild(s);
+    }
+    const label=document.createElement('div');
+    label.style.cssText='text-align:center;font-size:10px;color:#fff;background:rgba(0,0,0,.15);border-radius:6px;padding:4px;margin-top:4px;letter-spacing:2px;font-weight:700';
+    label.textContent='RAIA PHOTOBOOTH ✿';
+    stage.appendChild(label);
   }
-  // brand label below
-  const label=document.createElement('div');
-  label.style.cssText='text-align:center;font-size:10px;color:#fff;background:rgba(0,0,0,.15);border-radius:6px;padding:4px;margin-top:4px;letter-spacing:2px;font-weight:700';
-  label.textContent='RAIA PHOTOBOOTH ✿';
-  stage.appendChild(label);
 
   // restore existing shots
   function renderSlots(){
@@ -170,11 +215,12 @@ async function initCamera(){
     let activeIdx=-1;
     slots.forEach((sl,i)=>{
       sl.classList.remove('live','filled','no-mirror');
-      const inner=sl.querySelector('img,video');
+      const inner=sl.querySelector('img:not(.overlay),video');
       if(inner) inner.remove();
       if(shots[i]){
         const img=document.createElement('img');
         img.src=shots[i];
+        img.style.cssText='width:100%;height:100%;object-fit:cover';
         sl.appendChild(img);
         sl.classList.add('filled');
       } else if(activeIdx===-1){
@@ -186,6 +232,7 @@ async function initCamera(){
       const v=document.createElement('video');
       v.autoplay=true;v.playsInline=true;v.muted=true;
       v.srcObject=video.srcObject;
+      v.style.cssText='width:100%;height:100%;object-fit:cover';
       sl.appendChild(v);
       sl.classList.add('live');
       if(!mirror) sl.classList.add('no-mirror');
