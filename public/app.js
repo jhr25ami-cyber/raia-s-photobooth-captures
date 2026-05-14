@@ -400,7 +400,9 @@ function pushHistory(){
   EDIT.redo=[];
 }
 
-function drawFrame(canvas){
+function drawFrame(canvas, opts){
+  opts=opts||{};
+  const maxW=opts.maxW||Infinity;
   const type=RAIA.state.type;
   const shots=RAIA.state.shots.filter(Boolean);
   const ctx=canvas.getContext('2d');
@@ -410,32 +412,32 @@ function drawFrame(canvas){
   // ===== CUSTOM FRAME PATH =====
   const customF=getCustomFrame(RAIA.state.frame);
   if(customF){
-    return loadImg(customF.src).then(frameImg=>{
-      const W=frameImg.naturalWidth, H=frameImg.naturalHeight;
+    return loadImg(customF.src).then(async frameImg=>{
+      let W=frameImg.naturalWidth, H=frameImg.naturalHeight;
+      const scale=Math.min(1, maxW/W);
+      W=Math.round(W*scale); H=Math.round(H*scale);
       canvas.width=W;canvas.height=H;
       ctx.clearRect(0,0,W,H);
-      // photo layer (with filter)
       ctx.filter=filterCss;
-      const tasks=customF.slots.map((s,i)=>{
-        if(!shots[i]) return Promise.resolve();
-        return loadImg(shots[i]).then(img=>{
-          const dw=s.w*W, dh=s.h*H, dx=s.x*W, dy=s.y*H;
-          const ar=img.width/img.height, sar=dw/dh;
-          let sx,sy,sw,sh;
-          if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
-          else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
-          ctx.save();
-          ctx.translate(dx+dw/2,dy+dh/2);
-          ctx.rotate(((s.rot||0)*Math.PI)/180);
-          ctx.drawImage(img,sx,sy,sw,sh,-dw/2,-dh/2,dw,dh);
-          ctx.restore();
-        });
-      });
-      return Promise.all(tasks).then(()=>{
-        ctx.filter='none';
-        // overlay PNG on top
-        ctx.drawImage(frameImg,0,0,W,H);
-      });
+      // Draw photos sequentially with yields to keep UI responsive
+      for(let i=0;i<customF.slots.length;i++){
+        const s=customF.slots[i];
+        if(!shots[i]) continue;
+        const img=await loadImg(shots[i]);
+        const dw=s.w*W, dh=s.h*H, dx=s.x*W, dy=s.y*H;
+        const ar=img.width/img.height, sar=dw/dh;
+        let sx,sy,sw,sh;
+        if(ar>sar){sh=img.height;sw=sh*sar;sx=(img.width-sw)/2;sy=0;}
+        else{sw=img.width;sh=sw/sar;sx=0;sy=(img.height-sh)/2;}
+        ctx.save();
+        ctx.translate(dx+dw/2,dy+dh/2);
+        ctx.rotate(((s.rot||0)*Math.PI)/180);
+        ctx.drawImage(img,sx,sy,sw,sh,-dw/2,-dh/2,dw,dh);
+        ctx.restore();
+        await new Promise(r=>setTimeout(r,0));
+      }
+      ctx.filter='none';
+      ctx.drawImage(frameImg,0,0,W,H);
     });
   }
 
