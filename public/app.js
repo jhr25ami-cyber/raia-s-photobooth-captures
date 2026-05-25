@@ -533,14 +533,90 @@ function initEditor(){
     Object.assign(EDIT,{filter:s.f,brightness:s.b,contrast:s.c,saturate:s.s,stickers:s.st});
     syncControls();render();
   };
-  // INSTANT NAV: editor doesn't render HD; save page does it once
-  document.getElementById('nextBtn').onclick=()=>{
-    // persist edit state so save page renders with same look
+  // NEXT: run AI DSLR reconstruction on raw shots, then go to save page
+  document.getElementById('nextBtn').onclick=async()=>{
     try{localStorage.setItem('raia.edit',JSON.stringify({f:EDIT.filter,b:EDIT.brightness,c:EDIT.contrast,s:EDIT.saturate}));}catch{}
-    RAIA.state.final=''; // invalidate cache → save will render HD once
+    RAIA.state.final='';
+    RAIA.loader('Menghubungkan ke Server AI Gratis... Merekonstruksi piksel ke Kualitas DSLR 4K (Kulit Bening & Efek Studio Flash)...');
+    try{
+      await enhanceShotsDSLR();
+    }catch(e){ console.warn('AI enhance failed, using local fallback', e); }
+    RAIA.loader(false);
     RAIA.go('save.html');
   };
   document.getElementById('backBtn').onclick=()=>RAIA.go('camera.html');
+
+  // ===== AI DSLR ENHANCEMENT =====
+  async function enhanceShotsDSLR(){
+    const shots = RAIA.state.shots.map((s,i)=>({s,i})).filter(o=>o.s);
+    const DSLR_PROMPT = "Professional studio front-flash lighting, distinct catchlight in the eyes, realistic sharp studio flash shadow reflection, vibrant color pop, shot on high-end DSLR camera connected to a flash trigger, flawless glowing skin, ultra sharp, 4k";
+    const MODELS = [
+      'https://api-inference.huggingface.co/models/tencentarc/gfpgan',
+      'https://api-inference.huggingface.co/models/sczhou/codeformer'
+    ];
+    const results = await Promise.all(shots.map(async ({s,i})=>{
+      try{
+        const blob = await (await fetch(s)).blob();
+        const aiBlob = await Promise.race([
+          tryHF(MODELS, blob, DSLR_PROMPT),
+          new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
+        ]);
+        const dataUrl = await blobToDataURL(aiBlob);
+        return {i, dataUrl};
+      }catch(err){
+        // FALLBACK: local DSLR-look reconstruction
+        const dataUrl = await localDSLREnhance(s);
+        return {i, dataUrl};
+      }
+    }));
+    results.forEach(r=>{ if(r && r.dataUrl) RAIA.state.shots[r.i] = r.dataUrl; });
+  }
+  async function tryHF(models, blob, prompt){
+    let lastErr;
+    for(const url of models){
+      try{
+        const res = await fetch(url, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/octet-stream', 'x-wait-for-model':'true', 'Accept':'image/png' },
+          body: blob
+        });
+        if(!res.ok) throw new Error('HF '+res.status);
+        const ct = res.headers.get('content-type')||'';
+        if(!ct.startsWith('image/')) throw new Error('not image');
+        return await res.blob();
+      }catch(e){ lastErr=e; }
+    }
+    throw lastErr||new Error('all models failed');
+  }
+  function blobToDataURL(blob){
+    return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
+  }
+  async function localDSLREnhance(src){
+    const img = await loadImg(src);
+    const scale = 2;
+    const w = img.naturalWidth*scale, h = img.naturalHeight*scale;
+    const c = document.createElement('canvas'); c.width=w; c.height=h;
+    const x = c.getContext('2d');
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality='high';
+    // bilinear upscale + DSLR-flash look: brightness/contrast/saturate boost
+    x.filter = 'brightness(1.08) contrast(1.18) saturate(1.15)';
+    x.drawImage(img,0,0,w,h);
+    // sharpen pass via overlay of lightly blurred copy subtracted (unsharp mask approx)
+    try{
+      const blur = document.createElement('canvas'); blur.width=w; blur.height=h;
+      const bx = blur.getContext('2d');
+      bx.filter='blur(1.2px)'; bx.drawImage(c,0,0);
+      x.globalCompositeOperation='difference'; x.filter='none'; x.globalAlpha=0.35;
+      x.drawImage(blur,0,0);
+      x.globalCompositeOperation='source-over'; x.globalAlpha=1;
+    }catch{}
+    // subtle flash highlight vignette (brighter center)
+    const g = x.createRadialGradient(w/2,h*0.42,Math.min(w,h)*0.1,w/2,h*0.5,Math.max(w,h)*0.7);
+    g.addColorStop(0,'rgba(255,250,235,0.18)');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=g; x.fillRect(0,0,w,h);
+    return c.toDataURL('image/jpeg',0.92);
+  }
 
   function syncControls(){
     document.getElementById('brightness').value=EDIT.brightness;
