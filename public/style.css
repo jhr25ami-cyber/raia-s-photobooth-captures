@@ -332,7 +332,7 @@ body::before{
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* ===== DESKTOP-FIT LAYOUT ===== */
-@media (min-width: 900px) and (min-height: 500px){
+@media (min-width: 900px) and (min-height: 500px), (orientation: landscape) and (min-width: 560px){
   html,body{height:100%;overflow:hidden}
   .app{height:100vh;max-height:100vh;overflow:hidden}
   .nav{padding:10px 28px}
@@ -403,3 +403,60 @@ body::before{
   /* doodles smaller */
   .doodle{font-size:30px !important}
 }
+
+/* ===== Android landscape phones (short viewport) — extra compact ===== */
+@media (orientation: landscape) and (max-height: 500px){
+  .nav{padding:6px 14px}
+  .brand-logo{width:34px;height:34px;font-size:16px;border-radius:10px}
+  .brand-name{font-size:13px}
+  .brand-name small{font-size:8px;letter-spacing:1px}
+  .container{padding:0 14px !important;height:calc(100vh - 48px)}
+  .container > .page-title{font-size:clamp(18px,3.2vh,26px) !important;margin:2px 0}
+  .container > .page-sub{font-size:11px;margin-bottom:6px}
+
+  .hero{padding:0 14px}
+  .hero h1{font-size:clamp(28px,7vh,52px);margin:2px 0 6px}
+  .subtitle{margin-bottom:10px;padding:5px 12px;font-size:12px}
+  .btn-pop{padding:9px 26px;font-size:16px}
+
+  .type-card{padding:10px}
+  .type-card h3{font-size:14px}
+  .type-card p{font-size:10px}
+  .mock-strip div{width:70px;height:22px}
+  .mock-4r{width:110px;height:130px}
+
+  .frame-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+  .frame-carousel{gap:6px}
+  .frame-nav{width:36px;height:36px}
+
+  .cam-layout{gap:10px;grid-template-columns:1.7fr 1fr}
+  .cam-actions{margin-top:6px;gap:8px}
+  .btn-lg{padding:8px 18px;font-size:13px}
+  .countdown{font-size:90px}
+  .slot-side{padding:8px}
+  .slot-side h3{font-size:12px}
+  .frame-stage.strip{max-width:100px}
+  .frame-stage.r4{max-width:180px}
+
+  .edit-layout{gap:10px}
+  .preview-stage{padding:8px}
+  .tools{padding:10px}
+  .tools h3{font-size:12px;margin:4px 0}
+  .filter-btn{font-size:9px;padding:3px}
+  .slider-row label{font-size:11px}
+
+  .save-grid{gap:10px}
+  .save-grid > .card{padding:10px}
+
+  .doodle{font-size:20px !important;opacity:.5}
+  .loading-overlay .spin{width:48px;height:48px}
+}
+
+/* ===== Very narrow landscape (small phones ~640×360) ===== */
+@media (orientation: landscape) and (max-width: 720px){
+  .cam-layout{grid-template-columns:1.8fr 1fr;gap:8px}
+  .edit-layout{grid-template-columns:1.4fr 1fr;gap:8px}
+  .save-grid{grid-template-columns:1.3fr 1fr}
+  .btn-lg{padding:7px 14px;font-size:12px}
+}
+
