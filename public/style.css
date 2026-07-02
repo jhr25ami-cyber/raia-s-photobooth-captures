@@ -346,10 +346,10 @@ body::before{
   .subtitle{margin-bottom:22px;padding:8px 18px;font-size:15px}
   .btn-pop{padding:16px 44px;font-size:22px}
 
-  /* Generic page container */
-  .container{padding:0 24px !important;height:calc(100vh - 64px);overflow:hidden;display:flex;flex-direction:column}
+  /* Generic page container — trim side margins */
+  .container{padding:0 14px !important;max-width:100% !important;height:calc(100vh - 64px);overflow:hidden;display:flex;flex-direction:column}
   .container > .page-title{margin:4px 0 4px;font-size:clamp(24px,3vw,38px) !important}
-  .container > .page-sub{margin-bottom:14px;font-size:14px}
+  .container > .page-sub{margin-bottom:10px;font-size:14px}
 
   /* choose-type */
   .type-grid{flex:1;min-height:0;align-items:stretch;margin-top:0}
@@ -366,20 +366,20 @@ body::before{
   .frame-card{padding:8px}
   .frame-card .name{font-size:11px;margin-top:4px}
 
-  /* camera */
-  .cam-layout{flex:1;min-height:0;margin-top:0;gap:18px;grid-template-columns:1.6fr 1fr;align-items:stretch}
-  .cam-layout > div:first-child{display:flex;flex-direction:column;min-height:0}
-  .cam-panel{flex:1;min-height:0;aspect-ratio:auto}
+  /* camera — maximize preview at 4:3, balanced right panel */
+  .cam-layout{flex:1;min-height:0;margin-top:0;gap:14px;grid-template-columns:minmax(0,2.2fr) minmax(240px,1fr);align-items:stretch}
+  .cam-layout > div:first-child{display:flex;flex-direction:column;min-height:0;align-items:center;justify-content:center}
+  .cam-panel{width:auto;max-width:100%;max-height:calc(100% - 62px);height:100%;aspect-ratio:4/3;margin:0 auto;flex:0 1 auto}
   .cam-actions{margin-top:10px;flex-shrink:0}
   .btn-lg{padding:12px 28px;font-size:15px}
   .countdown{font-size:140px}
   .slot-side{padding:12px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
   .slot-side h3{font-size:14px;margin-bottom:6px}
   .slot-side > p{font-size:11px;margin-top:6px}
-  #frameStageWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px !important}
-  .frame-stage{max-height:100%;width:auto}
-  .frame-stage.strip{max-width:130px;max-height:100%}
-  .frame-stage.r4{max-width:230px;max-height:100%}
+  #frameStageWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px !important}
+  .frame-stage{max-height:100%;width:auto;margin:0 auto}
+  .frame-stage.strip{max-width:min(100%,180px);max-height:100%}
+  .frame-stage.r4{max-width:min(100%,360px);max-height:100%}
   .frame-stage.strip .slot,.frame-stage.r4 .slot{min-height:0}
 
   /* editor */
